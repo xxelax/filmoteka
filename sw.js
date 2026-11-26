@@ -1,6 +1,6 @@
-// Фильмотека: сервис-воркер. Оболочка приложения работает и без сети, данные всегда берутся свежие.
-const CACHE = 'filmoteka-v4';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'favicon.png'];
+// Фильмотека: сервис-воркер. Оболочка работает и без сети; файлы сайта всегда сверяются с сервером.
+const CACHE = 'filmoteka-v5';
+const SHELL = ['./', 'index.html'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
@@ -9,7 +9,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // данные Google и постеры TMDB — напрямую
-  e.respondWith(fetch(e.request).then(r => {               // сначала сеть, чтобы правки приезжали сразу
-    const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r;
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => {    // всегда свежая версия с сервера
+    if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    return r;
   }).catch(() => caches.match(e.request).then(m => m || caches.match('index.html'))));
 });
