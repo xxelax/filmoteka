@@ -106,6 +106,12 @@ main{padding-top:16px;padding-bottom:70px}
 .links{display:flex;gap:8px;flex-wrap:wrap}
 .links a{color:#1a1405;background:var(--accent);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px}
 .links a.alt{background:var(--bg);color:var(--text);border:1px solid var(--line)}
+#cfm{max-width:min(400px,92vw);padding:22px}
+#cfm h3{margin:0 0 8px;font-size:20px}
+#cfm p{margin:0 0 18px;color:var(--mute);line-height:1.45;font-size:15px}
+#cfm .row{justify-content:flex-end;gap:10px}
+#cfm .btn{min-height:44px}
+#cfm .danger{background:#3a1f1e;border-color:#5a2e2b;color:#f0a19c;font-weight:600}
 .links .off{background:var(--bg);color:var(--mute);border:1px solid var(--line);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;font-weight:600;font-size:14px;opacity:.4;cursor:default}
 @media (max-width:720px){.links .off{min-height:44px}}
 .msg{color:var(--mute);padding:60px 0;text-align:center;font-size:16px;line-height:1.5}
@@ -233,6 +239,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 
 <main class="wrap" id="main"></main>
 
+<dialog id="cfm" aria-labelledby="cfmT"><h3 id="cfmT"></h3><p id="cfmP"></p><div class="row"><button class="btn" type="button" id="cfmNo">Отмена</button><button class="btn danger" type="button" id="cfmYes">Удалить</button></div></dialog>
 <dialog id="dlg" aria-label="Карточка фильма"><button class="close" id="dlgClose" type="button" aria-label="Закрыть">×</button><div class="mod" id="mod"></div></dialog>
 
 <script>
@@ -379,8 +386,18 @@ function apiCall(params, gsName, gsArgs, done, bad){
       .then(function(d){ if(d && d.error) throw new Error(d.error); done(d); }).catch(bad);
   }
 }
+function askConfirm(title, text, cb){   // своё окно подтверждения в стиле сайта
+  var d=$('cfm'); $('cfmT').textContent=title; $('cfmP').textContent=text;
+  function done(v){ $('cfmYes').onclick=$('cfmNo').onclick=null; d.onclose=null; if(d.open) d.close(); cb(v); }
+  $('cfmYes').onclick=function(){ done(true); }; $('cfmNo').onclick=function(){ done(false); };
+  d.onclose=function(){ done(false); };
+  d.onclick=function(e){ if(e.target===d) done(false); };
+  d.showModal(); $('cfmNo').focus();
+}
 function deleteFilmUI(f){
-  if(!window.confirm('Удалить «'+f.name+'» из базы?\nСтрока исчезнет из таблицы «Фильмы».')) return;
+  askConfirm('Удалить «'+f.name+'»?', 'Фильм исчезнет из Киноархива и из таблицы «Фильмы».', function(yes){ if(yes) doDeleteFilm(f); });
+}
+function doDeleteFilm(f){
   $('dlg').close();
   var before=films.slice();
   films=films.filter(function(x){ return x!==f; }); render();
