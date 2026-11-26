@@ -120,10 +120,10 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .kv{color:var(--mute);font-size:14px;margin:4px 0}
 .mod .kv b{color:var(--text);font-weight:500}
 .close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer;z-index:2}
-.trash{background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--mute);padding:0}
-.trash:hover{color:#f0a19c;border-color:#7a3b37}
+.trash{background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#c9645c;padding:0;flex:none}
+.trash:hover{color:#e0786f;border-color:#5a2e2b}
 .trash svg{width:20px;height:20px}
-.mod .trash{position:absolute;top:10px;right:62px;z-index:2}
+.mod .links{align-items:center}
 .rc{position:relative}.rc .trash{position:absolute;top:8px;right:8px;width:40px;height:40px;background:rgba(15,14,19,.6)}
 .rc>.hd{padding-right:40px}
 /* рекомендации */
@@ -610,9 +610,9 @@ function openFilm(f){
   else if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
   if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
   var tu=tmdbUrl(f); if(tu) l.appendChild(link(tu,'TMDB',1));
+  if(f.row){ var tb2=trashBtn('Удалить фильм из базы'); tb2.style.marginLeft='auto'; tb2.onclick=function(){ deleteFilmUI(f); }; l.appendChild(tb2); }
   if(l.childNodes.length) d.appendChild(l);
   m.appendChild(d);
-  if(f.row){ var tb2=trashBtn('Удалить фильм из базы'); tb2.onclick=function(){ deleteFilmUI(f); }; m.appendChild(tb2); }
   $('dlg').showModal();
 }
 function measureBar(){ document.documentElement.style.setProperty('--barH', $('bar').offsetHeight+'px'); }
