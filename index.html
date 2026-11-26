@@ -120,6 +120,34 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .kv{color:var(--mute);font-size:14px;margin:4px 0}
 .mod .kv b{color:var(--text);font-weight:500}
 .close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
+/* рекомендации */
+.seg .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:#e5534b;color:#fff;font-size:12px;font-weight:700;line-height:20px}
+.seg button[aria-pressed=true] .cnt{background:#1a1405;color:var(--accent)}
+.rhead{color:var(--mute);font-size:14px;margin:0 0 16px;line-height:1.5}
+.rhead b{color:var(--text);font-size:18px;display:block;margin-bottom:2px}
+.recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:18px}
+.rc{display:grid;grid-template-columns:150px 1fr;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;align-items:start}
+.rc .poster{box-shadow:none;border-radius:10px}
+.rc h3{margin:0 0 4px;font-size:19px;line-height:1.25}
+.rc .s{color:var(--mute);font-size:13px;margin-bottom:8px}
+.rc .why{background:rgba(232,176,74,.12);border-left:3px solid var(--accent);border-radius:8px;padding:8px 10px;font-size:14px;line-height:1.45;margin:8px 0}
+.rc .ov{font-size:14px;line-height:1.5;color:#cfcad6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;margin:6px 0 0}
+.rc .ov.open{-webkit-line-clamp:unset;display:block}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.acts button{border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)}
+.acts .play{background:#e5534b;border-color:#e5534b;color:#fff}
+.acts .want{background:var(--accent);border-color:var(--accent);color:#1a1405}
+.acts button:disabled{opacity:.5;cursor:default}
+.vid{grid-column:1/-1;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
+.vid iframe{width:100%;height:100%;border:0;display:block}
+.mod .vid{margin-top:14px}
+.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:#2a2833;color:var(--text);border:1px solid #47434f;border-radius:12px;padding:12px 16px;font-size:15px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw;text-align:center}
+@media (max-width:720px){
+  .rc{grid-template-columns:96px 1fr;gap:12px;padding:12px}
+  .rc h3{font-size:17px}
+  .acts{grid-column:1/-1}
+  .acts button{flex:1 1 auto}
+}
 @media (max-width:720px){
   header{padding-top:16px;grid-template-columns:1fr auto;grid-template-areas:"title btn" "src src" "stats stats";align-items:center;row-gap:4px}
   .brand{display:contents} header h1{grid-area:title} header .src{grid-area:src;margin-top:0} header .stats{margin-top:8px}
@@ -161,6 +189,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
     <div class="seg" role="group" aria-label="Вид">
       <button type="button" id="vGallery" aria-pressed="true">Галерея</button>
       <button type="button" id="vTable" aria-pressed="false">Таблица</button>
+      <button type="button" id="vRecs" aria-pressed="false">Рекомендации</button>
     </div>
     <input type="search" id="q" placeholder="Поиск по названию и заметке" aria-label="Поиск">
     <select id="sort" aria-label="Сортировка">
@@ -189,7 +218,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 (function(){
 'use strict';
 var DATA_URL = 'https://script.google.com/macros/s/AKfycbxGTsGk8PU75W8UPxs-PQRtI44b406Y-AA1y61BQu7t6g9-UDaBeiU0fWS8aK1EVyvZ/exec?format=json';
-var films = [], loaded = false, lastError = '', lastSig = '';
+var films = [], recs = [], loaded = false, lastError = '', lastSig = '';
 var state = {view:'gallery', q:'', status:'all', rec:'all', genres:[], sortKey:'added', sortDir:'desc', fOpen:false};
 var STATUS_SEEN = 'просмотрено', STATUS_PLAN = 'хочу посмотреть';
 
@@ -284,9 +313,17 @@ function render(){
   $('stSeen').textContent=films.filter(isSeen).length;
   $('stPlan').textContent=films.filter(isPlan).length;
   buildFilters();
+  var isRecs = state.view==='recs';
   $('sizeBox').style.visibility = state.view==='gallery' ? 'visible' : 'hidden';
+  ['q','sort','fbtn'].forEach(function(id){ $(id).style.display = isRecs ? 'none' : ''; });
+  $('sizeBox').style.display = isRecs ? 'none' : '';
+  $('filters').style.display = isRecs ? 'none' : '';
   $('vGallery').setAttribute('aria-pressed', state.view==='gallery');
   $('vTable').setAttribute('aria-pressed', state.view==='table');
+  $('vRecs').setAttribute('aria-pressed', isRecs);
+  $('vRecs').replaceChildren(document.createTextNode('Рекомендации'));
+  if(recs.length) $('vRecs').appendChild(el('span','cnt',recs.length));
+  measureBar();
   var sv=state.sortKey+':'+state.sortDir, sel=$('sort');
   if(![].some.call(sel.options,function(o){return o.value===sv;})){
     var o=sel.querySelector('option[data-custom]')||el('option'); o.setAttribute('data-custom','1');
@@ -299,6 +336,7 @@ function render(){
     if(lastError){ m.appendChild(errorBox()); return; }
     var w=el('div','msg'); w.appendChild(el('div','spin')); w.appendChild(el('div','','Читаю таблицу…')); m.appendChild(w); return;
   }
+  if(isRecs){ m.appendChild(renderRecs()); return; }
   if(!films.length){ m.appendChild(el('div','msg','В таблице пока нет фильмов. Добавь строку во вкладку «Фильмы».')); return; }
   var list=visible();
   if(!list.length){
@@ -308,6 +346,67 @@ function render(){
   }
   if(state.view==='gallery') m.appendChild(renderGallery(list));
   else m.appendChild(narrow() ? renderList(list) : renderTable(list));
+}
+/* ---------- рекомендации ---------- */
+function ytKey(u){ var m=String(u||'').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/); return m?m[1]:''; }
+function videoBox(key){
+  var v=el('div','vid'), f=document.createElement('iframe');
+  f.src='https://www.youtube-nocookie.com/embed/'+key+'?autoplay=1&rel=0&playsinline=1';
+  f.title='Трейлер'; f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen=true;
+  f.referrerPolicy='strict-origin-when-cross-origin';
+  v.appendChild(f); return v;
+}
+function cleanRec(x){
+  x=x||{}; var g=Array.isArray(x.genres)?x.genres:String(x.genres||'').split(/[\/,;]+/);
+  return {name:String(x.name||''), year:String(x.year||''), genres:g.map(function(s){return String(s).trim();}).filter(Boolean),
+    why:String(x.why||''), overview:String(x.overview||''), trailer:safeUrl(x.trailer), poster:safeUrl(x.poster), tmdb:String(x.tmdb||''), date:String(x.date||'')};
+}
+function toast(t){ var o=document.querySelector('.toast'); if(o) o.remove(); var e=el('div','toast',t); document.body.appendChild(e); setTimeout(function(){ e.remove(); },3200); }
+function recAction(action, r){
+  var before=recs.slice();
+  recs=recs.filter(function(x){ return x.tmdb!==r.tmdb; }); render();
+  toast(action==='want' ? '«'+r.name+'» добавлен в «Хочу посмотреть»' : '«'+r.name+'» убран из рекомендаций');
+  function bad(err){ recs=before; render(); toast('Не получилось: '+((err&&err.message)||err||'ошибка')+'. Попробуй ещё раз.'); }
+  if(window.google && google.script && google.script.run){
+    google.script.run.withSuccessHandler(function(d){ lastSig=''; ok(d); }).withFailureHandler(bad)[action==='want'?'wantRec':'dismissRec'](r.tmdb);
+  } else {
+    fetch(DATA_URL.split('?')[0]+'?action='+action+'&id='+encodeURIComponent(r.tmdb),{cache:'no-store'})
+      .then(function(x){ if(!x.ok) throw new Error('HTTP '+x.status); return x.json(); })
+      .then(function(d){ if(d && d.error) throw new Error(d.error); lastSig=''; ok(d); }).catch(bad);
+  }
+}
+function renderRecs(){
+  var box=el('div');
+  var h=el('div','rhead'); h.appendChild(el('b','',recs.length ? 'Лора советует: '+recs.length+' '+(recs.length===1?'фильм':recs.length<5?'фильма':'фильмов') : 'Новых рекомендаций пока нет'));
+  h.appendChild(document.createTextNode(recs.length ? 'Фильмы, которые уже вышли, подобраны под твой вкус. Новая подборка каждую пятницу.' : 'Следующая подборка появится в пятницу.'));
+  box.appendChild(h);
+  var g=el('div','recs');
+  recs.forEach(function(r){
+    var c=el('div','rc');
+    var pb=el('button','thumb'); pb.type='button'; pb.style.width='100%'; pb.setAttribute('aria-label','Трейлер: '+r.name);
+    fillPoster(pb.appendChild(el('div','poster')), {name:r.name, year:r.year, poster:r.poster}, 'w342', true);
+    c.appendChild(pb);
+    var d=el('div'); d.appendChild(el('h3','',r.name));
+    d.appendChild(el('div','s',[r.year, r.genres.join(', ')].filter(Boolean).join(' · ')));
+    if(r.why){ var w=el('div','why'); w.appendChild(el('b','','Почему тебе понравится: ')); w.appendChild(document.createTextNode(r.why)); d.appendChild(w); }
+    if(r.overview){ var o=el('p','ov',r.overview); o.title='Нажми, чтобы раскрыть'; o.onclick=function(){ o.classList.toggle('open'); }; d.appendChild(o); }
+    c.appendChild(d);
+    var a=el('div','acts'), key=ytKey(r.trailer), vid=null;
+    function play(){
+      if(vid){ vid.remove(); vid=null; pl.textContent='▶ Трейлер'; return; }
+      if(!key){ if(r.trailer) window.open(r.trailer,'_blank','noopener'); return; }
+      vid=videoBox(key); c.insertBefore(vid,a); pl.textContent='■ Закрыть трейлер';
+    }
+    var pl=el('button','play','▶ Трейлер'); pl.type='button'; pl.onclick=play; pb.onclick=play;
+    if(key || r.trailer) a.appendChild(pl);
+    var wb=el('button','want','＋ Хочу посмотреть'); wb.type='button'; wb.onclick=function(){ wb.disabled=true; recAction('want',r); };
+    var nb=el('button','','✕ Не интересно'); nb.type='button'; nb.onclick=function(){ nb.disabled=true; recAction('dismiss',r); };
+    a.appendChild(wb); a.appendChild(nb);
+    c.appendChild(a);
+    g.appendChild(c);
+  });
+  box.appendChild(g);
+  return box;
 }
 function errorBox(){
   var e=el('div','msg err');
@@ -429,7 +528,11 @@ function openFilm(f){
   if(f.genres.length){ var tg=el('div','tags'); tg.style.margin='12px 0'; f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); d.appendChild(tg); }
   if(f.note) d.appendChild(el('p','note',f.note));
   var l=el('div','links'); l.style.marginTop='16px';
-  if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
+  var tk=ytKey(f.trailer);
+  if(tk){ var tb=el('button','',''); tb.type='button'; tb.textContent='▶ Трейлер'; tb.className='btn'; tb.style.background='#e5534b'; tb.style.borderColor='#e5534b'; tb.style.color='#fff'; tb.style.fontWeight='600';
+    tb.onclick=function(){ var ex=d.querySelector('.vid'); if(ex){ ex.remove(); tb.textContent='▶ Трейлер'; } else { d.appendChild(videoBox(tk)); tb.textContent='■ Закрыть трейлер'; } };
+    l.appendChild(tb); }
+  else if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
   if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
   var tu=tmdbUrl(f); if(tu) l.appendChild(link(tu,'TMDB',1));
   if(l.childNodes.length) d.appendChild(l);
@@ -445,12 +548,13 @@ function hhmm(d){ return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).s
 function ok(res){
   busy=false;
   var arr = res && Array.isArray(res.films) ? res.films : (Array.isArray(res)?res:[]);
-  var sig = JSON.stringify(arr);
+  var rarr = res && Array.isArray(res.recs) ? res.recs : [];
+  var sig = JSON.stringify({f:arr, r:rarr});
   var changed = !loaded || sig!==lastSig;   // перерисовываем, только если в таблице что-то поменялось
   lastSig = sig; lastError='';
   setSrc('live','Обновлено в '+hhmm(new Date()));
   if(!changed) return;
-  films = arr.map(cleanFilm); loaded=true;
+  films = arr.map(cleanFilm); recs = rarr.map(cleanRec).filter(function(x){ return x.name && x.tmdb; }); loaded=true;
   store('data', sig);
   if(!$('dlg').open) render(); else pendingRender=true;
 }
@@ -478,11 +582,12 @@ $('sort').addEventListener('change',function(e){ var p=e.target.value.split(':')
 $('size').addEventListener('input',function(e){ document.documentElement.style.setProperty('--w',e.target.value+'px'); store('size',e.target.value); });
 $('vGallery').onclick=function(){ state.view='gallery'; store('view','gallery'); render(); };
 $('vTable').onclick=function(){ state.view='table'; store('view','table'); render(); };
+$('vRecs').onclick=function(){ state.view='recs'; store('view','recs'); render(); window.scrollTo(0,0); };
 $('fbtn').onclick=function(){ state.fOpen=!state.fOpen; render(); if(state.fOpen) $('filters').scrollIntoView({block:'nearest'}); };
 $('reload').onclick=function(){ load(true); };
 $('dlgClose').onclick=function(){ $('dlg').close(); };
 $('dlg').addEventListener('click',function(e){ if(e.target===$('dlg')) $('dlg').close(); });
-$('dlg').addEventListener('close',function(){ if(pendingRender){ pendingRender=false; render(); } });
+$('dlg').addEventListener('close',function(){ $('mod').replaceChildren(); if(pendingRender){ pendingRender=false; render(); } });
 var lastNarrow=narrow();
 window.addEventListener('resize',function(){ measureBar(); var n=narrow(); if(n!==lastNarrow){ lastNarrow=n; render(); } });
 document.addEventListener('visibilitychange',function(){ if(!document.hidden && loaded) load(false); });
@@ -490,12 +595,13 @@ setInterval(function(){ if(!document.hidden) load(false); }, 90000);
 
 (function restore(){
   var s=read('size'); if(s && +s>=150 && +s<=360){ $('size').value=s; document.documentElement.style.setProperty('--w',s+'px'); }
-  var v=read('view'); if(v==='table'||v==='gallery') state.view=v;
+  var v=read('view'); if(v==='table'||v==='gallery'||v==='recs') state.view=v;
   var so=read('sort'); if(so && /^(added|year|name|rating):(asc|desc)$/.test(so)){ var p=so.split(':'); state.sortKey=p[0]; state.sortDir=p[1]; }
 })();
 (function fromCache(){ // мгновенный показ прошлых данных, пока грузятся свежие
   var c=read('data'); if(!c) return;
-  try{ var arr=JSON.parse(c); if(Array.isArray(arr)&&arr.length){ films=arr.map(cleanFilm); loaded=true; lastSig=c; } }catch(e){}
+  try{ var o=JSON.parse(c), arr=Array.isArray(o)?o:(o&&o.f)||[];
+    if(arr.length){ films=arr.map(cleanFilm); recs=((o&&o.r)||[]).map(cleanRec); loaded=true; lastSig=c; } }catch(e){}
 })();
 render();
 load(true);
