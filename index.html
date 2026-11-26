@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Фильмотека</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f0e13">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Фильмотека">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+:root{--bg:#0f0e13;--panel:#17161d;--panel2:#1e1c25;--line:#2a2833;--text:#f2efe9;--mute:#a29eac;--accent:#e8b04a;--ok:#4fd18b;--w:220px;--barH:0px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--accent)}
+.wrap{padding-left:clamp(14px,4vw,48px);padding-right:clamp(14px,4vw,48px)}
+header{padding-top:max(24px,env(safe-area-inset-top));padding-bottom:6px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px;justify-content:space-between}
+h1{margin:0;font-size:clamp(26px,4vw,40px);letter-spacing:-.02em;font-weight:700}
+h1 span{color:var(--accent)}
+.src{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:6px;margin-top:4px}
+.dot{width:8px;height:8px;border-radius:50%;background:#777;flex:none}
+.dot.live{background:var(--ok)} .dot.err{background:#e5534b} .dot.busy{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.right{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.stats{display:flex;gap:18px;color:var(--mute);font-size:14px}
+.stats b{color:var(--text);font-size:22px;display:block;line-height:1.1}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 14px;min-height:44px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:#47434f}
+.btn:focus-visible,.chip:focus-visible,.card:focus-visible,th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{position:sticky;top:0;z-index:20;background:rgba(15,14,19,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding-top:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{background:none;border:0;border-radius:9px;padding:0 16px;min-height:38px;cursor:pointer;font-size:15px;color:var(--mute)}
+.seg button[aria-pressed=true]{background:var(--accent);color:#1a1405;font-weight:600}
+input[type=search],select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 12px;font-size:16px;min-height:44px}
+input[type=search]{flex:1 1 220px;min-width:0}
+.size{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:14px}
+.size input{width:130px;accent-color:var(--accent)}
+.filters{display:flex;flex-direction:column;gap:8px;padding-top:12px;padding-bottom:4px}
+.fl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fl .lbl{color:var(--mute);font-size:13px;min-width:92px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:0 14px;font-size:14px;cursor:pointer;min-height:36px}
+.chip[aria-pressed=true]{background:var(--accent);color:#1a1405;border-color:var(--accent);font-weight:600}
+#fbtn{display:none}
+main{padding-top:16px;padding-bottom:70px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--w),1fr));gap:24px 20px}
+.card{background:none;border:0;padding:0;text-align:left;cursor:pointer;border-radius:14px}
+.poster{aspect-ratio:2/3;border-radius:14px;overflow:hidden;position:relative;background:var(--panel2);box-shadow:0 8px 24px rgba(0,0,0,.45);transition:transform .2s,box-shadow .2s}
+.card:hover .poster{transform:translateY(-5px);box-shadow:0 16px 36px rgba(0,0,0,.6)}
+.poster img{width:100%;height:100%;object-fit:cover;display:block}
+.ph{width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:14px;overflow:hidden}
+.ph .t{font-size:clamp(16px,1.6vw,22px);font-weight:700;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.5);overflow-wrap:anywhere}
+.ph .y{font-size:14px;opacity:.85}
+.ph .ic{font-size:28px;opacity:.5}
+.badge{position:absolute;top:10px;left:10px;background:rgba(15,14,19,.82);border-radius:999px;padding:4px 10px;font-size:12px}
+.badge.plan{background:var(--accent);color:#1a1405;font-weight:600}
+.rate{position:absolute;bottom:10px;right:10px;background:rgba(15,14,19,.82);border-radius:999px;padding:3px 9px;font-size:13px;color:var(--accent)}
+.meta{padding:10px 2px 0}
+.meta .n{font-weight:600;font-size:16px;line-height:1.25}
+.meta .s{color:var(--mute);font-size:13px;margin-top:3px}
+/* таблица */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+.tbl th{position:sticky;top:calc(var(--barH) - 1px);z-index:5;background:var(--panel);text-align:left;font-weight:600;color:var(--mute);border-bottom:1px solid var(--line);white-space:nowrap;padding:0}
+.tbl th button{background:none;border:0;cursor:pointer;padding:10px 10px;width:100%;text-align:left;color:inherit;font-weight:600;min-height:40px}
+.tbl th button[data-on]{color:var(--text)}
+.tbl th span.nb{display:block;padding:10px}
+.tbl td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:hover td{background:#15141b}
+.tbl .pc{width:96px;padding:8px 8px 8px 10px}
+.thumb{width:76px;aspect-ratio:2/3;border-radius:5px;overflow:hidden;background:var(--panel2);display:block;cursor:pointer;border:0;padding:0}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .ph{padding:3px;justify-content:center;align-items:center}
+.thumb .ph .t{font-size:11px;text-shadow:none;text-align:center}
+.tbl .nm{font-weight:600;min-width:160px}
+.tbl .nt{min-width:260px;max-width:520px;color:#d9d5ce;line-height:1.4}
+.tbl .yr{white-space:nowrap}
+.tbl .gn{min-width:180px}
+.tags{display:flex;gap:5px;flex-wrap:wrap}
+.tag{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px;color:#cfcad6;white-space:nowrap}
+.st{font-size:12px;border-radius:999px;padding:3px 9px;white-space:nowrap;display:inline-block}
+.st.seen{background:rgba(79,209,139,.14);color:#7fe0aa}
+.st.plan{background:rgba(232,176,74,.16);color:var(--accent)}
+.stars{color:var(--accent);letter-spacing:1px;white-space:nowrap}
+.lnk{white-space:nowrap}
+.lnk a{display:inline-block;padding:4px 0}
+.mute{color:var(--mute)}
+/* мобильный список */
+.list{display:flex;flex-direction:column;gap:12px}
+.item{display:grid;grid-template-columns:76px 1fr;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
+.item .thumb{width:76px;border-radius:8px}
+.item .thumb .ph .t{font-size:11px}
+.item h3{margin:0;font-size:16px;line-height:1.25}
+.item .s{color:var(--mute);font-size:13px;margin:3px 0 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.item .nt{font-size:14px;line-height:1.4;color:#d9d5ce;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;margin:6px 0 0}
+.item .nt.open{-webkit-line-clamp:unset;display:block}
+.item .links{margin-top:6px}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{color:#1a1405;background:var(--accent);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px}
+.links a.alt{background:var(--bg);color:var(--text);border:1px solid var(--line)}
+.msg{color:var(--mute);padding:60px 0;text-align:center;font-size:16px;line-height:1.5}
+.msg.err{color:#f0a19c}
+.spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:rot 1s linear infinite;margin:0 auto 14px}
+@keyframes rot{to{transform:rotate(360deg)}}
+/* карточка */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:0;max-width:min(820px,94vw);width:100%;max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.75)}
+.mod{display:grid;grid-template-columns:minmax(160px,300px) 1fr;gap:24px;padding:24px}
+.mod h2{margin:0 44px 6px 0;font-size:26px;line-height:1.2}
+.mod .poster{box-shadow:none}
+.mod .note{line-height:1.55;margin:14px 0;font-size:15px;white-space:pre-wrap}
+.mod .kv{color:var(--mute);font-size:14px;margin:4px 0}
+.mod .kv b{color:var(--text);font-weight:500}
+.close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
+@media (max-width:720px){
+  header{padding-top:16px}
+  .stats{gap:14px} .stats b{font-size:19px}
+  #fbtn{display:inline-flex}
+  .filters{display:none}
+  .filters.open{display:flex}
+  .fl .lbl{min-width:100%}
+  .size{display:none}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}
+  .meta .n{font-size:15px}
+  .mod{grid-template-columns:1fr;padding:18px}
+  .mod .poster{max-width:240px;margin:0 auto;width:100%}
+  .chip{min-height:44px}
+  .seg button{min-height:44px}
+  .links a{min-height:44px}
+  .bar .row{gap:8px}
+  #sort{flex:1 1 140px;min-width:0}
+}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div>
+    <h1>🎬 Фильмо<span>тека</span></h1>
+    <div class="src"><span class="dot busy" id="dot"></span><span id="srcText">Загружаю…</span></div>
+  </div>
+  <div class="right">
+    <div class="stats">
+      <div><b id="stTotal">0</b>всего</div>
+      <div><b id="stSeen">0</b>просмотрено</div>
+      <div><b id="stPlan">0</b>хочу посмотреть</div>
+    </div>
+    <button class="btn" id="reload" type="button" title="Перечитать таблицу">↻ Обновить</button>
+  </div>
+</header>
+
+<div class="bar wrap" id="bar">
+  <div class="row">
+    <div class="seg" role="group" aria-label="Вид">
+      <button type="button" id="vGallery" aria-pressed="true">Галерея</button>
+      <button type="button" id="vTable" aria-pressed="false">Таблица</button>
+    </div>
+    <input type="search" id="q" placeholder="Поиск по названию и заметке" aria-label="Поиск">
+    <select id="sort" aria-label="Сортировка">
+      <option value="added:desc">Сначала новые записи</option>
+      <option value="added:asc">Порядок таблицы</option>
+      <option value="year:desc">Год: сначала новые</option>
+      <option value="year:asc">Год: сначала старые</option>
+      <option value="name:asc">По названию</option>
+      <option value="rating:desc">По оценке</option>
+    </select>
+    <label class="size" id="sizeBox">Размер <input type="range" id="size" min="150" max="360" step="10" value="220"></label>
+    <button class="btn" type="button" id="fbtn" aria-expanded="false" aria-controls="filters">Фильтры</button>
+  </div>
+</div>
+<div class="filters wrap" id="filters">
+  <div class="fl" id="fStatus"></div>
+  <div class="fl" id="fRec"></div>
+  <div class="fl" id="fGenre"></div>
+</div>
+
+<main class="wrap" id="main"></main>
+
+<dialog id="dlg" aria-label="Карточка фильма"><button class="close" id="dlgClose" type="button" aria-label="Закрыть">×</button><div class="mod" id="mod"></div></dialog>
+
+<script>
+(function(){
+'use strict';
+var DATA_URL = 'https://script.google.com/macros/s/AKfycbxGTsGk8PU75W8UPxs-PQRtI44b406Y-AA1y61BQu7t6g9-UDaBeiU0fWS8aK1EVyvZ/exec?format=json';
+var films = [], loaded = false, lastError = '', lastSig = '';
+var state = {view:'gallery', q:'', status:'all', rec:'all', genres:[], sortKey:'added', sortDir:'desc', fOpen:false};
+var STATUS_SEEN = 'просмотрено', STATUS_PLAN = 'хочу посмотреть';
+
+function $(id){ return document.getElementById(id); }
+function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=String(text); return e; }
+function safeUrl(u){ u=(u==null?'':String(u)).trim(); return /^https:\/\/[^\s]+$/i.test(u) ? u : ''; }
+function store(k,v){ try{ localStorage.setItem('filmoteka-'+k, v); }catch(e){} }
+function read(k){ try{ return localStorage.getItem('filmoteka-'+k); }catch(e){ return null; } }
+function norm(s){ return String(s||'').trim().toLowerCase(); }
+function yearNum(f){ var m=String(f.year||'').match(/\d{4}/); return m ? +m[0] : null; }
+function isSeen(f){ return norm(f.status)===STATUS_SEEN; }
+function isPlan(f){ return norm(f.status).indexOf('хочу')===0; }
+function hue(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
+function narrow(){ return window.matchMedia('(max-width:720px)').matches; }
+
+function cleanFilm(x, i){
+  x = x || {};
+  var g = Array.isArray(x.genres) ? x.genres : String(x.genres||'').split(/[\/,;]+/);
+  var r = x.rating==null || x.rating==='' ? null : Number(x.rating);
+  return {
+    idx:i, name:String(x.name||'Без названия'), year:x.year==null?'':String(x.year),
+    genres:g.map(function(s){return String(s).trim();}).filter(Boolean),
+    status:String(x.status||''), rating:(r==null||isNaN(r))?null:Math.max(0,Math.min(5,r)),
+    note:String(x.note||''), rec:String(x.rec||''), trailer:safeUrl(x.trailer), full:safeUrl(x.full),
+    source:String(x.source||''), poster:safeUrl(x.poster), tmdb:String(x.tmdb||'')
+  };
+}
+function posterSrc(f, size){
+  if(!f.poster) return '';
+  return f.poster.indexOf('image.tmdb.org/t/p/')>-1 ? f.poster.replace(/\/t\/p\/[^\/]+\//, '/t/p/'+size+'/') : f.poster;
+}
+function placeholder(f){
+  var h=hue(f.name), ph=el('div','ph');
+  ph.style.background='linear-gradient(160deg,hsl('+h+' 42% 30%),hsl('+((h+50)%360)+' 48% 12%))';
+  ph.appendChild(el('div','ic','🎞'));
+  var box=el('div'); box.appendChild(el('div','t',f.name)); if(f.year) box.appendChild(el('div','y',f.year));
+  ph.appendChild(box);
+  return ph;
+}
+function fillPoster(box, f, size, lazy){
+  var src=posterSrc(f,size);
+  if(!src){ box.appendChild(placeholder(f)); return box; }
+  var i=document.createElement('img'); i.alt='Постер: '+f.name; i.src=src; i.decoding='async';
+  if(lazy) i.loading='lazy';
+  i.referrerPolicy='no-referrer';
+  i.onerror=function(){ i.remove(); box.appendChild(placeholder(f)); };
+  box.appendChild(i);
+  return box;
+}
+function stars(r){ if(r==null) return ''; var n=Math.round(r); return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n); }
+function statusPill(f){ if(!f.status) return el('span','mute','—'); return el('span','st '+(isSeen(f)?'seen':isPlan(f)?'plan':''), f.status); }
+function link(u, text, alt){ var a=el('a',alt?'alt':'',text); a.href=u; a.target='_blank'; a.rel='noopener noreferrer'; return a; }
+function tmdbUrl(f){ return /^(movie|tv|collection)\/\d+$/.test(f.tmdb) ? 'https://www.themoviedb.org/'+f.tmdb+'?language=ru-RU' : ''; }
+
+/* ---------- фильтрация и сортировка ---------- */
+function visible(){
+  var q=norm(state.q);
+  var list=films.filter(function(f){
+    if(state.status==='seen' && !isSeen(f)) return false;
+    if(state.status==='plan' && !isPlan(f)) return false;
+    if(state.rec!=='all' && norm(f.rec)!==state.rec) return false;
+    for(var i=0;i<state.genres.length;i++) if(f.genres.map(norm).indexOf(state.genres[i])<0) return false;
+    if(q && (f.name+' '+f.note).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  var k=state.sortKey, d=state.sortDir==='asc'?1:-1;
+  function val(f){
+    switch(k){
+      case 'year': return yearNum(f);
+      case 'rating': return f.rating;
+      case 'name': return f.name.toLowerCase();
+      case 'genre': return f.genres.join('/').toLowerCase()||null;
+      case 'status': return norm(f.status)||null;
+      case 'rec': return norm(f.rec)||null;
+      case 'source': return norm(f.source)||null;
+      default: return f.idx;
+    }
+  }
+  list.sort(function(a,b){
+    var x=val(a), y=val(b);
+    if(x==null && y==null) return a.idx-b.idx;
+    if(x==null) return 1; if(y==null) return -1;   // пустые всегда в конце
+    var c = typeof x==='string' ? x.localeCompare(y,'ru') : x-y;
+    return c ? c*d : a.idx-b.idx;
+  });
+  return list;
+}
+
+/* ---------- отрисовка ---------- */
+function render(){
+  $('stTotal').textContent=films.length;
+  $('stSeen').textContent=films.filter(isSeen).length;
+  $('stPlan').textContent=films.filter(isPlan).length;
+  buildFilters();
+  $('sizeBox').style.visibility = state.view==='gallery' ? 'visible' : 'hidden';
+  $('vGallery').setAttribute('aria-pressed', state.view==='gallery');
+  $('vTable').setAttribute('aria-pressed', state.view==='table');
+  var sv=state.sortKey+':'+state.sortDir, sel=$('sort');
+  if(![].some.call(sel.options,function(o){return o.value===sv;})){
+    var o=sel.querySelector('option[data-custom]')||el('option'); o.setAttribute('data-custom','1');
+    o.value=sv; o.textContent='По колонке'; if(!o.parentNode) sel.appendChild(o);
+  }
+  sel.value=sv;
+
+  var m=$('main'); m.replaceChildren();
+  if(!loaded){
+    if(lastError){ m.appendChild(errorBox()); return; }
+    var w=el('div','msg'); w.appendChild(el('div','spin')); w.appendChild(el('div','','Читаю таблицу…')); m.appendChild(w); return;
+  }
+  if(!films.length){ m.appendChild(el('div','msg','В таблице пока нет фильмов. Добавь строку во вкладку «Фильмы».')); return; }
+  var list=visible();
+  if(!list.length){
+    var e=el('div','msg','Ничего не найдено. '); var b=el('button','btn','Сбросить фильтры'); b.type='button';
+    b.onclick=function(){ state.q=''; $('q').value=''; state.status='all'; state.rec='all'; state.genres=[]; render(); };
+    e.appendChild(el('br')); e.appendChild(b); m.appendChild(e); return;
+  }
+  if(state.view==='gallery') m.appendChild(renderGallery(list));
+  else m.appendChild(narrow() ? renderList(list) : renderTable(list));
+}
+function errorBox(){
+  var e=el('div','msg err');
+  e.appendChild(el('div','','Не удалось прочитать таблицу.'));
+  e.appendChild(el('div','mute',lastError));
+  var b=el('button','btn','Попробовать снова'); b.type='button'; b.style.marginTop='14px'; b.onclick=function(){ load(true); };
+  e.appendChild(b); return e;
+}
+function renderGallery(list){
+  var g=el('div','grid');
+  list.forEach(function(f){
+    var b=el('button','card'); b.type='button'; b.setAttribute('aria-label',f.name);
+    b.onclick=function(){ openFilm(f); };
+    var p=fillPoster(el('div','poster'), f, 'w500', true);
+    if(f.status) p.appendChild(el('span','badge'+(isPlan(f)?' plan':''), f.status));
+    if(f.rating!=null) p.appendChild(el('span','rate','★ '+f.rating));
+    b.appendChild(p);
+    var mt=el('div','meta'); mt.appendChild(el('div','n',f.name));
+    mt.appendChild(el('div','s',[f.year, f.genres.join(', ')].filter(Boolean).join(' · ')));
+    b.appendChild(mt); g.appendChild(b);
+  });
+  return g;
+}
+var COLS=[['','',''],['name','Название'],['year','Год'],['genre','Жанр'],['status','Статус'],['rating','Оценка'],['','Заметка'],['','Трейлер'],['','Фильм целиком']];
+function renderTable(list){
+  var t=el('table','tbl'), th=el('thead'), tr=el('tr');
+  COLS.forEach(function(c){
+    var h=el('th'); if(!c[0]){ h.appendChild(el('span','nb',c[1]||'')); if(!c[1]) h.setAttribute('aria-label','Постер'); }
+    else {
+      var b=el('button','',c[1]+(state.sortKey===c[0]?(state.sortDir==='asc'?' ▲':' ▼'):'')); b.type='button';
+      if(state.sortKey===c[0]) b.setAttribute('data-on','1');
+      b.onclick=function(){
+        if(state.sortKey===c[0]) state.sortDir = state.sortDir==='asc'?'desc':'asc';
+        else { state.sortKey=c[0]; state.sortDir = (c[0]==='year'||c[0]==='rating')?'desc':'asc'; }
+        render();
+      };
+      h.appendChild(b);
+      h.setAttribute('aria-sort', state.sortKey===c[0]?(state.sortDir==='asc'?'ascending':'descending'):'none');
+    }
+    tr.appendChild(h);
+  });
+  th.appendChild(tr); t.appendChild(th);
+  var tb=el('tbody');
+  list.forEach(function(f){
+    var r=el('tr');
+    var pc=el('td','pc'), tbn=el('button','thumb'); tbn.type='button'; tbn.setAttribute('aria-label','Открыть карточку: '+f.name);
+    tbn.onclick=function(){ openFilm(f); }; fillPoster(tbn,f,'w185',true); pc.appendChild(tbn); r.appendChild(pc);
+    r.appendChild(el('td','nm',f.name));
+    r.appendChild(el('td','yr',f.year||'—'));
+    var gt=el('td','gn'), tg=el('div','tags'); f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); gt.appendChild(tg); r.appendChild(gt);
+    var st=el('td'); st.appendChild(statusPill(f)); r.appendChild(st);
+    var rt=el('td'); if(f.rating!=null){ var s=el('span','stars',stars(f.rating)); s.title='Оценка '+f.rating+' из 5'; rt.appendChild(s);} else rt.appendChild(el('span','mute','—')); r.appendChild(rt);
+    r.appendChild(el('td','nt',f.note));
+    var t1=el('td','lnk'); if(f.trailer) t1.appendChild(link(f.trailer,'Трейлер ↗')); r.appendChild(t1);
+    var t2=el('td','lnk'); if(f.full) t2.appendChild(link(f.full,'Смотреть ↗')); r.appendChild(t2);
+    tb.appendChild(r);
+  });
+  t.appendChild(tb);
+  return t;
+}
+function renderList(list){
+  var box=el('div','list');
+  list.forEach(function(f){
+    var it=el('div','item');
+    var tbn=el('button','thumb'); tbn.type='button'; tbn.setAttribute('aria-label','Открыть карточку: '+f.name);
+    tbn.onclick=function(){ openFilm(f); }; fillPoster(tbn,f,'w185',true); it.appendChild(tbn);
+    var d=el('div'); d.appendChild(el('h3','',f.name));
+    var s=el('div','s'); if(f.year) s.appendChild(el('span','',f.year)); s.appendChild(statusPill(f));
+    if(f.rating!=null) s.appendChild(el('span','stars',stars(f.rating)));
+    d.appendChild(s);
+    if(f.genres.length){ var tg=el('div','tags'); f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); d.appendChild(tg); }
+    if(f.note){ var n=el('p','nt',f.note); n.title='Нажми, чтобы раскрыть'; n.onclick=function(){ n.classList.toggle('open'); }; d.appendChild(n); }
+    var l=el('div','links'); if(f.trailer) l.appendChild(link(f.trailer,'Трейлер')); if(f.full) l.appendChild(link(f.full,'Смотреть целиком',1));
+    if(l.childNodes.length) d.appendChild(l);
+    it.appendChild(d); box.appendChild(it);
+  });
+  return box;
+}
+function chip(label, pressed, fn){ var c=el('button','chip',label); c.type='button'; c.setAttribute('aria-pressed',!!pressed); c.onclick=fn; return c; }
+function buildFilters(){
+  var fs=$('fStatus'); fs.replaceChildren(); fs.appendChild(el('span','lbl','Статус'));
+  [['all','Все'],['seen','Просмотрено'],['plan','Хочу посмотреть']].forEach(function(o){
+    fs.appendChild(chip(o[1], state.status===o[0], function(){ state.status=o[0]; render(); }));
+  });
+  var fr=$('fRec'); fr.replaceChildren(); fr.appendChild(el('span','lbl','Советовать'));
+  [['all','Все'],['да','Да'],['нейтрально','Нейтрально'],['нет','Нет']].forEach(function(o){
+    fr.appendChild(chip(o[1], state.rec===o[0], function(){ state.rec=o[0]; render(); }));
+  });
+  var fg=$('fGenre'); fg.replaceChildren(); fg.appendChild(el('span','lbl','Жанры'));
+  var map={}; films.forEach(function(f){ f.genres.forEach(function(g){ var k=norm(g); if(!map[k]) map[k]={label:g,n:0}; map[k].n++; }); });
+  var keys=Object.keys(map).sort(function(a,b){ return map[b].n-map[a].n || a.localeCompare(b,'ru'); });
+  fg.appendChild(chip('Все жанры', !state.genres.length, function(){ state.genres=[]; render(); }));
+  keys.forEach(function(k){
+    var on=state.genres.indexOf(k)>-1;
+    fg.appendChild(chip(map[k].label+' '+map[k].n, on, function(){
+      if(on) state.genres=state.genres.filter(function(x){return x!==k;}); else state.genres=state.genres.concat(k);
+      render();
+    }));
+  });
+  var active=(state.status!=='all')+(state.rec!=='all')+state.genres.length;
+  $('fbtn').textContent='Фильтры'+(active?' · '+active:'')+(state.fOpen?' ▲':' ▼');
+  $('fbtn').setAttribute('aria-expanded',state.fOpen);
+  $('filters').classList.toggle('open',state.fOpen);
+  measureBar();
+}
+function openFilm(f){
+  var m=$('mod'); m.replaceChildren();
+  m.appendChild(fillPoster(el('div','poster'),f,'w780',false));
+  var d=el('div'); d.appendChild(el('h2','',f.name));
+  var s=el('div','s'); s.style.display='flex'; s.style.gap='8px'; s.style.flexWrap='wrap'; s.style.alignItems='center';
+  if(f.year) s.appendChild(el('span','mute',f.year)); s.appendChild(statusPill(f));
+  d.appendChild(s);
+  if(f.rating!=null){ var r=el('div','kv'); r.appendChild(el('span','stars',stars(f.rating)+' ')); r.appendChild(el('b','',f.rating+' из 5')); d.appendChild(r); }
+  if(f.genres.length){ var tg=el('div','tags'); tg.style.margin='12px 0'; f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); d.appendChild(tg); }
+  if(f.note) d.appendChild(el('p','note',f.note));
+  var l=el('div','links'); l.style.marginTop='16px';
+  if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
+  if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
+  var tu=tmdbUrl(f); if(tu) l.appendChild(link(tu,'TMDB',1));
+  if(l.childNodes.length) d.appendChild(l);
+  m.appendChild(d);
+  $('dlg').showModal();
+}
+function measureBar(){ document.documentElement.style.setProperty('--barH', $('bar').offsetHeight+'px'); }
+
+/* ---------- загрузка данных ---------- */
+var busy=false;
+function setSrc(kind, text){ $('dot').className='dot '+kind; $('srcText').textContent=text; }
+function hhmm(d){ return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function ok(res){
+  busy=false;
+  var arr = res && Array.isArray(res.films) ? res.films : (Array.isArray(res)?res:[]);
+  var sig = JSON.stringify(arr);
+  var changed = !loaded || sig!==lastSig;   // перерисовываем, только если в таблице что-то поменялось
+  lastSig = sig; lastError='';
+  setSrc('live','Из Google-таблицы · проверено в '+hhmm(new Date()));
+  if(!changed) return;
+  films = arr.map(cleanFilm); loaded=true;
+  store('data', sig);
+  if(!$('dlg').open) render(); else pendingRender=true;
+}
+var pendingRender=false;
+function fail(err){
+  busy=false;
+  lastError = (err && (err.message||err)) ? String(err.message||err) : 'Неизвестная ошибка';
+  if(loaded){ setSrc('err','Не обновилось ('+hhmm(new Date())+'), показаны прошлые данные'); }
+  else { setSrc('err','Ошибка чтения таблицы'); render(); }
+}
+function load(manual){
+  if(busy) return; busy=true;
+  if(manual || !loaded) setSrc('busy', loaded ? 'Обновляю…' : 'Загружаю…');
+  if(window.google && google.script && google.script.run){
+    google.script.run.withSuccessHandler(ok).withFailureHandler(fail).getFilms();
+  } else {
+    fetch(DATA_URL,{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){ if(d && d.error) throw new Error(d.error); ok(d); }).catch(fail);
+  }
+}
+
+/* ---------- события ---------- */
+$('q').addEventListener('input',function(e){ state.q=e.target.value; render(); });
+$('sort').addEventListener('change',function(e){ var p=e.target.value.split(':'); state.sortKey=p[0]; state.sortDir=p[1]; store('sort',e.target.value); render(); });
+$('size').addEventListener('input',function(e){ document.documentElement.style.setProperty('--w',e.target.value+'px'); store('size',e.target.value); });
+$('vGallery').onclick=function(){ state.view='gallery'; store('view','gallery'); render(); };
+$('vTable').onclick=function(){ state.view='table'; store('view','table'); render(); };
+$('fbtn').onclick=function(){ state.fOpen=!state.fOpen; render(); if(state.fOpen) $('filters').scrollIntoView({block:'nearest'}); };
+$('reload').onclick=function(){ load(true); };
+$('dlgClose').onclick=function(){ $('dlg').close(); };
+$('dlg').addEventListener('click',function(e){ if(e.target===$('dlg')) $('dlg').close(); });
+$('dlg').addEventListener('close',function(){ if(pendingRender){ pendingRender=false; render(); } });
+var lastNarrow=narrow();
+window.addEventListener('resize',function(){ measureBar(); var n=narrow(); if(n!==lastNarrow){ lastNarrow=n; render(); } });
+document.addEventListener('visibilitychange',function(){ if(!document.hidden && loaded) load(false); });
+setInterval(function(){ if(!document.hidden) load(false); }, 90000);
+
+(function restore(){
+  var s=read('size'); if(s && +s>=150 && +s<=360){ $('size').value=s; document.documentElement.style.setProperty('--w',s+'px'); }
+  var v=read('view'); if(v==='table'||v==='gallery') state.view=v;
+  var so=read('sort'); if(so && /^(added|year|name|rating):(asc|desc)$/.test(so)){ var p=so.split(':'); state.sortKey=p[0]; state.sortDir=p[1]; }
+})();
+(function fromCache(){ // мгновенный показ прошлых данных, пока грузятся свежие
+  var c=read('data'); if(!c) return;
+  try{ var arr=JSON.parse(c); if(Array.isArray(arr)&&arr.length){ films=arr.map(cleanFilm); loaded=true; lastSig=c; } }catch(e){}
+})();
+render();
+load(true);
+})();
+</script>
+<script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+</body>
+</html>
