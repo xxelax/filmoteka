@@ -118,8 +118,13 @@ main{padding-top:16px;padding-bottom:70px}
 #cfm .row{justify-content:flex-end;gap:10px}
 #cfm .btn{min-height:44px}
 #cfm .danger{background:#3a1f1e;border-color:#5a2e2b;color:#f0a19c;font-weight:600}
-.links .share{min-height:40px;font-weight:600;font-size:14px;background:rgba(79,209,139,.14);border-color:rgba(79,209,139,.5);color:#7fe0aa}
-@media (max-width:720px){.links .share{min-height:44px}}
+.mlinks{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.mb{height:48px;padding:0 18px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap;box-sizing:border-box}
+.mb.red{background:#e5534b;border-color:#e5534b;color:#fff}
+.mb.green{background:rgba(79,209,139,.14);border-color:rgba(79,209,139,.5);color:#7fe0aa}
+.mb.off{opacity:.4;cursor:default}
+.mb:disabled{opacity:.6}
+.mtrash{width:48px;height:48px;margin-left:auto}
 .links .off{background:var(--bg);color:var(--mute);border:1px solid var(--line);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;font-weight:600;font-size:14px;opacity:.4;cursor:default}
 @media (max-width:720px){.links .off{min-height:44px}}
 .msg{color:var(--mute);padding:60px 0;text-align:center;font-size:16px;line-height:1.5}
@@ -135,12 +140,12 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .note{line-height:1.55;margin:14px 0;font-size:15px;white-space:pre-wrap}
 .mod .kv{color:var(--mute);font-size:14px;margin:4px 0}
 .mod .kv b{color:var(--text);font-weight:500}
-.close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;width:44px;height:44px;font-size:22px;cursor:pointer;z-index:2}
-.trash{background:var(--bg);border:1px solid var(--line);border-radius:12px;width:44px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#c9645c;padding:0;flex:none}
+.close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;z-index:2}
+.trash{background:var(--bg);border:1px solid var(--line);border-radius:50%;width:44px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#c9645c;padding:0;flex:none}
 .trash:hover{color:#e0786f;border-color:#5a2e2b}
 .trash svg{width:20px;height:20px}
 .mod .links{align-items:center}
-.rc{position:relative}.rc .trash{position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:10px;background:rgba(15,14,19,.6)}
+.rc{position:relative}.rc .trash{position:absolute;top:8px;right:8px;width:40px;height:40px;background:rgba(15,14,19,.6)}
 .rc>.hd{padding-right:40px}
 /* рекомендации */
 .seg .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:#e5534b;color:#fff;font-size:12px;font-weight:700;line-height:20px}
@@ -197,7 +202,9 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
   .meta .n{font-size:15px}
   .lplay{min-height:44px}
   .mod{grid-template-columns:1fr;padding:18px}
-  .mod .poster{max-width:240px;margin:0 auto;width:100%}
+  .mod .poster{max-width:none;margin:0;width:100%}
+  .mb{flex:1 1 auto;padding:0 12px;font-size:14px}
+  .mtrash{flex:none}
   .chip{min-height:44px}
   .seg button{min-height:44px}
   .links a{min-height:44px}
@@ -447,6 +454,7 @@ function doShare(f, x){
   var data={title:f.name, text:x.text};
   if(x.file && navigator.canShare && navigator.canShare({files:[x.file]})) data.files=[x.file];
   if(!navigator.share){ copyFallback(x.text); return; }
+  if(!data.files) toast(x.file ? 'Этот браузер не умеет отправлять картинки — уйдёт только текст' : 'Постер не загрузился — уйдёт только текст');
   navigator.share(data).catch(function(e){
     if(e && e.name==='AbortError') return;          // просто закрыл окно «Поделиться»
     if(data.files){ delete data.files; navigator.share(data).catch(function(e2){ if(!(e2&&e2.name==='AbortError')) copyFallback(x.text); }); }
@@ -687,16 +695,23 @@ function openFilm(f, autoplay){
   if(f.rating!=null){ var r=el('div','kv'); r.appendChild(el('span','stars',stars(f.rating)+' ')); r.appendChild(el('b','',f.rating+' из 5')); d.appendChild(r); }
   if(f.genres.length){ var tg=el('div','tags'); tg.style.margin='12px 0'; f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); d.appendChild(tg); }
   if(f.note) d.appendChild(el('p','note',f.note));
-  var l=el('div','links'); l.style.marginTop='16px';
+  var l=el('div','mlinks');
+  function mb(tag, cls, text){ var b=el(tag,'mb '+(cls||''),text); if(tag==='button') b.type='button'; return b; }
+  // 1) TMDB
+  var tu=tmdbUrl(f);
+  if(tu){ var ta=mb('a','','TMDB'); ta.href=tu; ta.target='_blank'; ta.rel='noopener noreferrer'; l.appendChild(ta); }
+  else { var off=mb('span','off','TMDB'); off.title='Фильма нет на TMDB'; off.setAttribute('aria-disabled','true'); l.appendChild(off); }
+  // 2) Трейлер (играет прямо в карточке)
   var tk=ytKey(f.trailer);
-  if(tk){ var tb=el('button','',''); tb.type='button'; tb.textContent='▶ Трейлер'; tb.className='btn'; tb.style.background='#e5534b'; tb.style.borderColor='#e5534b'; tb.style.color='#fff'; tb.style.fontWeight='600';
-    tb.onclick=function(){ var ex=d.querySelector('.vidwrap'); if(ex){ ex.remove(); tb.textContent='▶ Трейлер'; } else { d.appendChild(videoBox(tk)); tb.textContent='■ Закрыть трейлер'; } };
+  if(tk){ var tb=mb('button','red','▶ Трейлер');
+    tb.onclick=function(){ var ex=d.querySelector('.vidwrap'); if(ex){ ex.remove(); tb.textContent='▶ Трейлер'; } else { d.appendChild(videoBox(tk)); tb.textContent='■ Закрыть'; } };
     l.appendChild(tb); playBtn=tb; }
-  else if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
-  if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
-  if(isSeen(f)){   // «Поделиться» — для просмотренных
+  else if(f.trailer){ var tl=mb('a','red','▶ Трейлер'); tl.href=f.trailer; tl.target='_blank'; tl.rel='noopener noreferrer'; l.appendChild(tl); }
+  if(f.full){ var fl=mb('a','','Смотреть'); fl.href=f.full; fl.target='_blank'; fl.rel='noopener noreferrer'; l.appendChild(fl); }
+  // 3) Поделиться — для просмотренных
+  if(isSeen(f)){
     var prep=prepareShare(f), ready=null; prep.then(function(x){ ready=x; });
-    var sh=el('button','btn share','↗ Поделиться'); sh.type='button';
+    var sh=mb('button','green','↗ Поделиться');
     sh.onclick=function(){
       if(ready){ doShare(f, ready); return; }
       sh.disabled=true; sh.textContent='Готовлю…';
@@ -704,10 +719,8 @@ function openFilm(f, autoplay){
     };
     l.appendChild(sh);
   }
-  var tu=tmdbUrl(f);
-  if(tu) l.appendChild(link(tu,'TMDB',1));
-  else { var off=el('span','off','TMDB'); off.title='Фильма нет на TMDB'; off.setAttribute('aria-disabled','true'); l.appendChild(off); }
-  if(f.row){ var tb2=trashBtn('Удалить фильм из базы'); tb2.style.marginLeft='auto'; tb2.onclick=function(){ deleteFilmUI(f); }; l.appendChild(tb2); }
+  // корзина — справа
+  if(f.row){ var tb2=trashBtn('Удалить фильм из базы'); tb2.classList.add('mtrash'); tb2.onclick=function(){ deleteFilmUI(f); }; l.appendChild(tb2); }
   if(l.childNodes.length) d.appendChild(l);
   m.appendChild(d);
   $('dlg').showModal();
