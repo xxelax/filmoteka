@@ -139,6 +139,14 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .acts button{border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)}
 .acts .play{background:#e5534b;border-color:#e5534b;color:#fff}
 .acts .want{background:var(--accent);border-color:var(--accent);color:#1a1405}
+.acts .seen{background:rgba(79,209,139,.14);border-color:rgba(79,209,139,.5);color:#7fe0aa}
+.rate-box{grid-column:2;margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.rate-box .lb{color:var(--mute);font-size:13px;margin:0 0 6px}
+.rate-box .row{gap:6px;margin-bottom:12px}
+.starbtn{background:none;border:0;font-size:32px;line-height:1;min-width:44px;min-height:44px;cursor:pointer;color:#4a4655;padding:0}
+.starbtn.on{color:var(--accent)}
+.rate-box .chip{min-height:40px}
+.rate-box .acts{margin-top:4px}
 .acts button:disabled{opacity:.5;cursor:default}
 .vidwrap{grid-column:1/-1}.rc>.vidwrap{margin-top:12px}.mod .vidwrap{margin-top:14px}
 .ytl{display:inline-block;margin-top:6px;font-size:13px;color:var(--mute)}
@@ -148,7 +156,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:#2a2833;color:var(--text);border:1px solid #47434f;border-radius:12px;padding:12px 16px;font-size:15px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw;text-align:center}
 @media (max-width:720px){
   .rc{grid-template-columns:96px 1fr;column-gap:12px;padding:12px}
-  .rc>.thumb{grid-row:1}.rc>.hd{align-self:center}.rc>.bd,.rc>.acts{grid-column:1/-1}
+  .rc>.thumb{grid-row:1}.rc>.hd{align-self:center}.rc>.bd,.rc>.acts,.rc>.rate-box{grid-column:1/-1}
   .rc h3{font-size:17px}
   .acts button{flex:1 1 auto}
   .seg{display:flex;width:100%}.seg button{flex:1 1 auto;padding:0 8px;font-size:14px}
@@ -370,15 +378,20 @@ function cleanRec(x){
     why:String(x.why||''), overview:String(x.overview||''), trailer:safeUrl(x.trailer), poster:safeUrl(x.poster), tmdb:String(x.tmdb||''), date:String(x.date||'')};
 }
 function toast(t){ var o=document.querySelector('.toast'); if(o) o.remove(); var e=el('div','toast',t); document.body.appendChild(e); setTimeout(function(){ e.remove(); },3200); }
-function recAction(action, r){
+function recAction(action, r, opt){
+  opt=opt||{};
   var before=recs.slice();
   recs=recs.filter(function(x){ return x.tmdb!==r.tmdb; }); render();
-  toast(action==='want' ? '«'+r.name+'» добавлен в «Хочу посмотреть»' : '«'+r.name+'» убран из рекомендаций');
+  toast(action==='want' ? '«'+r.name+'» добавлен в «Хочу посмотреть»' :
+        action==='seen' ? '«'+r.name+'» добавлен в просмотренные'+(opt.rating?', оценка '+opt.rating:'') :
+        '«'+r.name+'» убран из рекомендаций');
   function bad(err){ recs=before; render(); toast('Не получилось: '+((err&&err.message)||err||'ошибка')+'. Попробуй ещё раз.'); }
   if(window.google && google.script && google.script.run){
-    google.script.run.withSuccessHandler(function(d){ lastSig=''; ok(d); }).withFailureHandler(bad)[action==='want'?'wantRec':'dismissRec'](r.tmdb);
+    var run=google.script.run.withSuccessHandler(function(d){ lastSig=''; ok(d); }).withFailureHandler(bad);
+    if(action==='seen') run.seenRec(r.tmdb, opt.rating||'', opt.rec||''); else run[action==='want'?'wantRec':'dismissRec'](r.tmdb);
   } else {
-    fetch(DATA_URL.split('?')[0]+'?action='+action+'&id='+encodeURIComponent(r.tmdb),{cache:'no-store'})
+    var q='?action='+action+'&id='+encodeURIComponent(r.tmdb)+(action==='seen'?'&rating='+encodeURIComponent(opt.rating||'')+'&rec='+encodeURIComponent(opt.rec||''):'');
+    fetch(DATA_URL.split('?')[0]+q,{cache:'no-store'})
       .then(function(x){ if(!x.ok) throw new Error('HTTP '+x.status); return x.json(); })
       .then(function(d){ if(d && d.error) throw new Error(d.error); lastSig=''; ok(d); }).catch(bad);
   }
@@ -410,9 +423,32 @@ function renderRecs(){
     var pl=el('button','play','▶ Трейлер'); pl.type='button'; pl.onclick=play; pb.onclick=play;
     if(key || r.trailer) a.appendChild(pl);
     var wb=el('button','want','＋ Хочу посмотреть'); wb.type='button'; wb.onclick=function(){ wb.disabled=true; recAction('want',r); };
+    var sb=el('button','seen','✓ Уже посмотрел'); sb.type='button';
     var nb=el('button','','✕ Не интересно'); nb.type='button'; nb.onclick=function(){ nb.disabled=true; recAction('dismiss',r); };
-    a.appendChild(wb); a.appendChild(nb);
+    a.appendChild(wb); a.appendChild(sb); a.appendChild(nb);
     c.appendChild(a);
+    var box=null;
+    sb.onclick=function(){
+      if(box){ box.remove(); box=null; return; }
+      var pick={rating:0, rec:'Да'};
+      box=el('div','rate-box');
+      box.appendChild(el('div','lb','Твоя оценка'));
+      var sr=el('div','row'), stars=[];
+      for(var i=1;i<=5;i++)(function(n){ var b=el('button','starbtn','★'); b.type='button'; b.setAttribute('aria-label','Оценка '+n);
+        b.onclick=function(){ pick.rating=n; stars.forEach(function(x,j){ x.classList.toggle('on', j<n); }); save.disabled=false; };
+        stars.push(b); sr.appendChild(b); })(i);
+      box.appendChild(sr);
+      box.appendChild(el('div','lb','Советовать похожее?'));
+      var rr=el('div','row'), chips=[];
+      ['Да','Нейтрально','Нет'].forEach(function(v){ var ch=chip(v, v===pick.rec, function(){ pick.rec=v; chips.forEach(function(x){ x.setAttribute('aria-pressed', x.textContent===v); }); }); chips.push(ch); rr.appendChild(ch); });
+      box.appendChild(rr);
+      var ba=el('div','acts');
+      var save=el('button','want','Сохранить'); save.type='button'; save.disabled=true;
+      save.onclick=function(){ save.disabled=true; recAction('seen', r, {rating:pick.rating, rec:pick.rec}); };
+      var cancel=el('button','','Отмена'); cancel.type='button'; cancel.onclick=function(){ box.remove(); box=null; };
+      ba.appendChild(save); ba.appendChild(cancel); box.appendChild(ba);
+      c.insertBefore(box, a.nextSibling);
+    };
     g.appendChild(c);
   });
   box.appendChild(g);
