@@ -112,6 +112,18 @@ main{padding-top:16px;padding-bottom:70px}
 .links{display:flex;gap:8px;flex-wrap:wrap}
 .links a{color:#1a1405;background:var(--accent);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px}
 .links a.alt{background:var(--bg);color:var(--text);border:1px solid var(--line)}
+#shr{max-width:min(460px,94vw);padding:0}
+.shr{padding:22px 20px 20px}
+.shr h3{margin:0 50px 14px 0;font-size:21px}
+.shr h4{margin:0 0 10px;font-size:16px}
+.sopt{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.sopt .mb{width:100%}
+.sopt .row2{display:flex;gap:10px}.sopt .row2 .mb{flex:1 1 0}
+.hint{color:var(--mute);font-size:13px;line-height:1.45;margin:8px 0 0}
+.prev{display:flex;justify-content:center;align-items:center;min-height:160px;margin-bottom:12px}
+.prev img{max-height:300px;max-width:100%;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.prev .spin{margin:0}
+.linkbtn{background:none;border:0;color:var(--mute);text-decoration:underline;font-size:13px;cursor:pointer;padding:10px 0 0;min-height:44px}
 #cfm{max-width:min(400px,92vw);padding:22px}
 #cfm h3{margin:0 0 8px;font-size:20px}
 #cfm p{margin:0 0 18px;color:var(--mute);line-height:1.45;font-size:15px}
@@ -256,6 +268,20 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 <main class="wrap" id="main"></main>
 
 <dialog id="cfm" aria-labelledby="cfmT"><h3 id="cfmT"></h3><p id="cfmP"></p><div class="row"><button class="btn" type="button" id="cfmNo">Отмена</button><button class="btn danger" type="button" id="cfmYes">Удалить</button></div></dialog>
+<dialog id="shr" aria-label="Поделиться"><button class="close" id="shrClose" type="button" aria-label="Закрыть">×</button><div class="shr">
+  <h3 id="shrT">Поделиться</h3>
+  <div class="sopt">
+    <button class="mb green" type="button" id="shFriend">💬 Отправить другу</button>
+    <p class="hint">Название, оценка, пара строк описания и ссылка на трейлер. В Telegram, WhatsApp и Viber под ссылкой сам появится кадр из трейлера.</p>
+  </div>
+  <div class="sopt">
+    <h4>📸 Открытка для соцсетей</h4>
+    <div class="prev" id="shPrev"><div class="spin"></div></div>
+    <div class="row2"><button class="mb" type="button" id="shPost">Пост</button><button class="mb" type="button" id="shStory">Сторис</button></div>
+    <p class="hint">Ссылка на трейлер сама скопируется: в Instagram нажми стикер «Ссылка» и «Вставить».</p>
+    <button class="linkbtn" type="button" id="shSave">⬇ Сохранить открытки в телефон</button>
+  </div>
+</div></dialog>
 <dialog id="dlg" aria-label="Карточка фильма"><button class="close" id="dlgClose" type="button" aria-label="Закрыть">×</button><div class="mod" id="mod"></div></dialog>
 
 <script>
@@ -460,6 +486,81 @@ function doShare(f, x){
     if(data.files){ delete data.files; navigator.share(data).catch(function(e2){ if(!(e2&&e2.name==='AbortError')) copyFallback(x.text); }); }
     else copyFallback(x.text);
   });
+}
+/* ---------- открытка ---------- */
+function loadImg(src){ return new Promise(function(res){ if(!src) return res(null); var i=new Image(); i.crossOrigin='anonymous'; i.onload=function(){ res(i); }; i.onerror=function(){ res(null); }; i.src=src; }); }
+function rr(x,a,b,w,hh,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+hh,r); x.arcTo(a+w,b+hh,a,b+hh,r); x.arcTo(a,b+hh,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
+function wrapLines(x,text,maxW,maxLines){
+  var words=String(text).split(/\s+/), lines=[], cur='';
+  words.forEach(function(w){ var t=cur?cur+' '+w:w; if(x.measureText(t).width<=maxW||!cur) cur=t; else { lines.push(cur); cur=w; } });
+  if(cur) lines.push(cur);
+  if(lines.length>maxLines){ lines=lines.slice(0,maxLines); var last=lines[maxLines-1]; while(x.measureText(last+'…').width>maxW && last.length>1) last=last.slice(0,-1); lines[maxLines-1]=last.replace(/\s+$/,'')+'…'; }
+  return lines;
+}
+var FONT='system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+function drawCard(f,img,W,H){
+  var c=document.createElement('canvas'); c.width=W; c.height=H; var x=c.getContext('2d'), story=H>1500;
+  var g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#211d2c'); g.addColorStop(1,'#0b0a0f'); x.fillStyle=g; x.fillRect(0,0,W,H);
+  if(img){ x.save(); x.filter='blur(60px) brightness(0.45)'; var sc=Math.max(W/img.width,H/img.height)*1.15; x.drawImage(img,(W-img.width*sc)/2,(H-img.height*sc)/2,img.width*sc,img.height*sc); x.restore(); }
+  x.fillStyle='rgba(11,10,15,.35)'; x.fillRect(0,0,W,H);
+  var pw=story?700:540, ph=pw*1.5, px=(W-pw)/2, py=story?190:90;
+  x.save(); x.shadowColor='rgba(0,0,0,.65)'; x.shadowBlur=70; x.shadowOffsetY=28; rr(x,px,py,pw,ph,30); x.fillStyle='#000'; x.fill(); x.restore();
+  x.save(); rr(x,px,py,pw,ph,30); x.clip();
+  if(img) x.drawImage(img,px,py,pw,ph);
+  else { var hu=hue(f.name), pg=x.createLinearGradient(px,py,px+pw,py+ph); pg.addColorStop(0,'hsl('+hu+',42%,30%)'); pg.addColorStop(1,'hsl('+((hu+50)%360)+',48%,12%)'); x.fillStyle=pg; x.fillRect(px,py,pw,ph); }
+  x.restore();
+  var y=py+ph+(story?110:80);
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  x.fillStyle='#f2efe9'; x.font='700 '+(story?68:56)+'px '+FONT;
+  wrapLines(x,f.name,W-140,2).forEach(function(t){ x.fillText(t,W/2,y); y+=story?80:66; });
+  var sub=[f.year, f.genres.slice(0,3).join(', ')].filter(Boolean).join(' · ');
+  if(sub){ x.fillStyle='#b3aebd'; x.font='400 '+(story?38:32)+'px '+FONT; x.fillText(sub,W/2,y-(story?10:12)); y+=story?70:52; }
+  if(f.rating!=null){ x.fillStyle='#e8b04a'; x.font='400 '+(story?70:58)+'px '+FONT; x.fillText(stars(f.rating),W/2,y+(story?20:14)); }
+  // подпись «🎬 Киноархив»
+  var by=H-(story?120:56); x.font='700 '+(story?42:34)+'px '+FONT;
+  var a='🎬 Кино', b='архив', wa=x.measureText(a).width, wb=x.measureText(b).width, sx=W/2-(wa+wb)/2;
+  x.textAlign='left'; x.fillStyle='#f2efe9'; x.fillText(a,sx,by); x.fillStyle='#e8b04a'; x.fillText(b,sx+wa,by);
+  return c;
+}
+function canvasFile(c,name){ return new Promise(function(res){ try{ c.toBlob(function(b){ res(b?new File([b],name,{type:'image/jpeg'}):null); },'image/jpeg',0.92); }catch(e){ res(null); } }); }
+function slug(s){ return String(s).replace(/[^\wа-яё]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40)||'film'; }
+function saveFile(file){
+  var u=URL.createObjectURL(file), a=document.createElement('a'); a.href=u; a.download=file.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(u); },4000);
+}
+function trailerLink(f){ var k=ytKey(f.trailer); return k ? 'https://youtu.be/'+k : (f.trailer||''); }
+function copyLink(f){
+  var t=trailerLink(f); if(!t || !navigator.clipboard || !navigator.clipboard.writeText) return Promise.resolve(false);
+  return navigator.clipboard.writeText(t).then(function(){ return true; }).catch(function(){ return false; });
+}
+function openShare(f){
+  var d=$('shr'); $('shrT').textContent='Поделиться: '+f.name;
+  var prev=$('shPrev'); prev.replaceChildren(el('div','spin'));
+  var btns=['shPost','shStory','shSave'].map($); btns.forEach(function(b){ b.disabled=true; });
+  var textP=fetchInfo(f).then(function(ov){ return shareText(f,ov); }), text=null; textP.then(function(t){ text=t; });
+  var files={};
+  loadImg(posterSrc(f,'w780')).then(function(img){
+    var post=drawCard(f,img,1080,1350), story=drawCard(f,img,1080,1920), base=slug(f.name);
+    var pi=document.createElement('img'); pi.alt='Открытка'; pi.src=post.toDataURL('image/jpeg',0.8); prev.replaceChildren(pi);
+    return Promise.all([canvasFile(post,base+'-post.jpg'), canvasFile(story,base+'-story.jpg')]);
+  }).then(function(fs){ files.post=fs[0]; files.story=fs[1]; btns.forEach(function(b){ b.disabled=!(files.post&&files.story); }); if(!files.post) prev.replaceChildren(el('div','hint','Не получилось нарисовать открытку.')); })
+    .catch(function(){ prev.replaceChildren(el('div','hint','Не получилось нарисовать открытку.')); });
+  $('shFriend').onclick=function(){
+    function go(t){ if(navigator.share) navigator.share({title:f.name, text:t}).catch(function(e){ if(!(e&&e.name==='AbortError')) copyFallback(t); }); else copyFallback(t); }
+    if(text) go(text); else { $('shFriend').disabled=true; textP.then(function(t){ $('shFriend').disabled=false; go(t); }); }
+  };
+  function social(kind){
+    var file=files[kind]; if(!file) return;
+    var hasLink=!!trailerLink(f);
+    copyLink(f).then(function(okc){ if(okc) toast('Ссылка на трейлер скопирована — в Instagram: стикер «Ссылка» → «Вставить»'); });
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file]}).catch(function(e){ if(e && e.name==='AbortError') return; saveFile(file); toast('Открытка сохранена в телефон'+(hasLink?', ссылка на трейлер в буфере':'')); });
+    } else { saveFile(file); toast('Открытка сохранена в телефон'+(hasLink?', ссылка на трейлер в буфере':'')); }
+  }
+  $('shPost').onclick=function(){ social('post'); };
+  $('shStory').onclick=function(){ social('story'); };
+  $('shSave').onclick=function(){ if(files.post) saveFile(files.post); if(files.story) setTimeout(function(){ saveFile(files.story); },400); copyLink(f); toast('Открытки сохранены в «Загрузки»'); };
+  d.showModal();
 }
 function deleteFilmUI(f){
   askConfirm('Удалить «'+f.name+'»?', 'Фильм исчезнет из Киноархива и из таблицы «Фильмы».', function(yes){ if(yes) doDeleteFilm(f); });
@@ -710,13 +811,8 @@ function openFilm(f, autoplay){
   else { var off=mb('span','off','TMDB'); off.title='Фильма нет на TMDB'; off.setAttribute('aria-disabled','true'); l.appendChild(off); }
   // 3) Поделиться — для просмотренных
   if(isSeen(f)){
-    var prep=prepareShare(f), ready=null; prep.then(function(x){ ready=x; });
     var sh=mb('button','green','↗ Поделиться');
-    sh.onclick=function(){
-      if(ready){ doShare(f, ready); return; }
-      sh.disabled=true; sh.textContent='Готовлю…';
-      prep.then(function(x){ sh.disabled=false; sh.textContent='↗ Поделиться'; doShare(f, x); });
-    };
+    sh.onclick=function(){ openShare(f); };
     l.appendChild(sh);
   }
   // корзина — справа
@@ -773,6 +869,8 @@ $('vRecs').onclick=function(){ state.view='recs'; store('view','recs'); render()
 $('fbtn').onclick=function(){ state.fOpen=!state.fOpen; render(); if(state.fOpen) $('filters').scrollIntoView({block:'nearest'}); };
 $('reload').onclick=function(){ load(true); };
 $('dlgClose').onclick=function(){ $('dlg').close(); };
+$('shrClose').onclick=function(){ $('shr').close(); };
+$('shr').addEventListener('click',function(e){ if(e.target===$('shr')) $('shr').close(); });
 $('dlg').addEventListener('click',function(e){ if(e.target===$('dlg')) $('dlg').close(); });
 $('dlg').addEventListener('close',function(){ $('mod').replaceChildren(); if(pendingRender){ pendingRender=false; render(); } });
 var lastNarrow=narrow();
