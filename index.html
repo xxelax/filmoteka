@@ -119,7 +119,13 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .note{line-height:1.55;margin:14px 0;font-size:15px;white-space:pre-wrap}
 .mod .kv{color:var(--mute);font-size:14px;margin:4px 0}
 .mod .kv b{color:var(--text);font-weight:500}
-.close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
+.close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer;z-index:2}
+.trash{background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--mute);padding:0}
+.trash:hover{color:#f0a19c;border-color:#7a3b37}
+.trash svg{width:20px;height:20px}
+.mod .trash{position:absolute;top:10px;right:62px;z-index:2}
+.rc{position:relative}.rc .trash{position:absolute;top:8px;right:8px;width:40px;height:40px;background:rgba(15,14,19,.6)}
+.rc>.hd{padding-right:40px}
 /* рекомендации */
 .seg .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:999px;background:#e5534b;color:#fff;font-size:12px;font-weight:700;line-height:20px}
 .seg button[aria-pressed=true] .cnt{background:#1a1405;color:var(--accent)}
@@ -252,7 +258,7 @@ function cleanFilm(x, i){
   var g = Array.isArray(x.genres) ? x.genres : String(x.genres||'').split(/[\/,;]+/);
   var r = x.rating==null || x.rating==='' ? null : Number(x.rating);
   return {
-    idx:i, name:String(x.name||'Без названия'), year:x.year==null?'':String(x.year),
+    idx:i, row:x.row||0, name:String(x.name||'Без названия'), year:x.year==null?'':String(x.year),
     genres:g.map(function(s){return String(s).trim();}).filter(Boolean),
     status:String(x.status||''), rating:(r==null||isNaN(r))?null:Math.max(0,Math.min(5,r)),
     note:String(x.note||''), rec:String(x.rec||''), trailer:safeUrl(x.trailer), full:safeUrl(x.full),
@@ -360,6 +366,27 @@ function render(){
   if(state.view==='gallery') m.appendChild(renderGallery(list));
   else m.appendChild(narrow() ? renderList(list) : renderTable(list));
 }
+var TRASH_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+function trashBtn(label){ var b=el('button','trash'); b.type='button'; b.title=label; b.setAttribute('aria-label',label); b.innerHTML=TRASH_SVG; return b; }
+function apiCall(params, gsName, gsArgs, done, bad){
+  if(window.google && google.script && google.script.run){
+    var run=google.script.run.withSuccessHandler(done).withFailureHandler(bad); run[gsName].apply(run, gsArgs);
+  } else {
+    var q=Object.keys(params).map(function(k){ return k+'='+encodeURIComponent(params[k]); }).join('&');
+    fetch(DATA_URL.split('?')[0]+'?'+q,{cache:'no-store'}).then(function(x){ if(!x.ok) throw new Error('HTTP '+x.status); return x.json(); })
+      .then(function(d){ if(d && d.error) throw new Error(d.error); done(d); }).catch(bad);
+  }
+}
+function deleteFilmUI(f){
+  if(!window.confirm('Удалить «'+f.name+'» из базы?\nСтрока исчезнет из таблицы «Фильмы».')) return;
+  $('dlg').close();
+  var before=films.slice();
+  films=films.filter(function(x){ return x!==f; }); render();
+  toast('«'+f.name+'» удалён');
+  apiCall({action:'delfilm', row:f.row, name:f.name}, 'deleteFilm', [f.row, f.name],
+    function(d){ lastSig=''; ok(d); },
+    function(err){ films=before; render(); toast('Не удалилось: '+((err&&err.message)||err)); load(true); });
+}
 /* ---------- рекомендации ---------- */
 function ytKey(u){ var m=String(u||'').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/); return m?m[1]:''; }
 function videoBox(key){
@@ -384,11 +411,12 @@ function recAction(action, r, opt){
   recs=recs.filter(function(x){ return x.tmdb!==r.tmdb; }); render();
   toast(action==='want' ? '«'+r.name+'» добавлен в «Хочу посмотреть»' :
         action==='seen' ? '«'+r.name+'» добавлен в просмотренные'+(opt.rating?', оценка '+opt.rating:'') :
-        '«'+r.name+'» убран из рекомендаций');
+        action==='remove' ? '«'+r.name+'» удалён из рекомендаций' :
+        '«'+r.name+'» убран: очень похожее больше не предложу');
   function bad(err){ recs=before; render(); toast('Не получилось: '+((err&&err.message)||err||'ошибка')+'. Попробуй ещё раз.'); }
   if(window.google && google.script && google.script.run){
     var run=google.script.run.withSuccessHandler(function(d){ lastSig=''; ok(d); }).withFailureHandler(bad);
-    if(action==='seen') run.seenRec(r.tmdb, opt.rating||'', opt.rec||''); else run[action==='want'?'wantRec':'dismissRec'](r.tmdb);
+    if(action==='seen') run.seenRec(r.tmdb, opt.rating||'', opt.rec||''); else run[{want:'wantRec',remove:'removeRec',dismiss:'dismissRec'}[action]](r.tmdb);
   } else {
     var q='?action='+action+'&id='+encodeURIComponent(r.tmdb)+(action==='seen'?'&rating='+encodeURIComponent(opt.rating||'')+'&rec='+encodeURIComponent(opt.rec||''):'');
     fetch(DATA_URL.split('?')[0]+q,{cache:'no-store'})
@@ -404,6 +432,7 @@ function renderRecs(){
   var g=el('div','recs');
   recs.forEach(function(r){
     var c=el('div','rc');
+    var tr=trashBtn('Удалить из рекомендаций (без оценки)'); tr.onclick=function(){ tr.disabled=true; recAction('remove',r); }; c.appendChild(tr);
     var pb=el('button','thumb'); pb.type='button'; pb.style.width='100%'; pb.setAttribute('aria-label','Трейлер: '+r.name);
     fillPoster(pb.appendChild(el('div','poster')), {name:r.name, year:r.year, poster:r.poster}, 'w342', true);
     c.appendChild(pb);
@@ -583,6 +612,7 @@ function openFilm(f){
   var tu=tmdbUrl(f); if(tu) l.appendChild(link(tu,'TMDB',1));
   if(l.childNodes.length) d.appendChild(l);
   m.appendChild(d);
+  if(f.row){ var tb2=trashBtn('Удалить фильм из базы'); tb2.onclick=function(){ deleteFilmUI(f); }; m.appendChild(tb2); }
   $('dlg').showModal();
 }
 function measureBar(){ document.documentElement.style.setProperty('--barH', $('bar').offsetHeight+'px'); }
