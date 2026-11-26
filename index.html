@@ -126,7 +126,9 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .rhead{color:var(--mute);font-size:14px;margin:0 0 16px;line-height:1.5}
 .rhead b{color:var(--text);font-size:18px;display:block;margin-bottom:2px}
 .recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:18px}
-.rc{display:grid;grid-template-columns:150px 1fr;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;align-items:start}
+.rc{display:grid;grid-template-columns:150px 1fr;column-gap:16px;row-gap:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;align-items:start}
+.rc>.thumb{grid-column:1;grid-row:1/span 3}.rc>.hd,.rc>.bd,.rc>.acts{grid-column:2}.rc>.vid{grid-column:1/-1;margin-top:12px}
+.seg button{white-space:nowrap}
 .rc .poster{box-shadow:none;border-radius:10px}
 .rc h3{margin:0 0 4px;font-size:19px;line-height:1.25}
 .rc .s{color:var(--mute);font-size:13px;margin-bottom:8px}
@@ -143,10 +145,11 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .vid{margin-top:14px}
 .toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:#2a2833;color:var(--text);border:1px solid #47434f;border-radius:12px;padding:12px 16px;font-size:15px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw;text-align:center}
 @media (max-width:720px){
-  .rc{grid-template-columns:96px 1fr;gap:12px;padding:12px}
+  .rc{grid-template-columns:96px 1fr;column-gap:12px;padding:12px}
+  .rc>.thumb{grid-row:1}.rc>.hd{align-self:center}.rc>.bd,.rc>.acts{grid-column:1/-1}
   .rc h3{font-size:17px}
-  .acts{grid-column:1/-1}
   .acts button{flex:1 1 auto}
+  .seg{display:flex;width:100%}.seg button{flex:1 1 auto;padding:0 8px;font-size:14px}
 }
 @media (max-width:720px){
   header{padding-top:16px;grid-template-columns:1fr auto;grid-template-areas:"title btn" "src src" "stats stats";align-items:center;row-gap:4px}
@@ -386,8 +389,10 @@ function renderRecs(){
     var pb=el('button','thumb'); pb.type='button'; pb.style.width='100%'; pb.setAttribute('aria-label','Трейлер: '+r.name);
     fillPoster(pb.appendChild(el('div','poster')), {name:r.name, year:r.year, poster:r.poster}, 'w342', true);
     c.appendChild(pb);
-    var d=el('div'); d.appendChild(el('h3','',r.name));
-    d.appendChild(el('div','s',[r.year, r.genres.join(', ')].filter(Boolean).join(' · ')));
+    var hd=el('div','hd'); hd.appendChild(el('h3','',r.name));
+    hd.appendChild(el('div','s',[r.year, r.genres.join(', ')].filter(Boolean).join(' · ')));
+    c.appendChild(hd);
+    var d=el('div','bd');
     if(r.why){ var w=el('div','why'); w.appendChild(el('b','','Почему тебе понравится: ')); w.appendChild(document.createTextNode(r.why)); d.appendChild(w); }
     if(r.overview){ var o=el('p','ov',r.overview); o.title='Нажми, чтобы раскрыть'; o.onclick=function(){ o.classList.toggle('open'); }; d.appendChild(o); }
     c.appendChild(d);
@@ -395,7 +400,7 @@ function renderRecs(){
     function play(){
       if(vid){ vid.remove(); vid=null; pl.textContent='▶ Трейлер'; return; }
       if(!key){ if(r.trailer) window.open(r.trailer,'_blank','noopener'); return; }
-      vid=videoBox(key); c.insertBefore(vid,a); pl.textContent='■ Закрыть трейлер';
+      vid=videoBox(key); c.appendChild(vid); pl.textContent='■ Закрыть трейлер';
     }
     var pl=el('button','play','▶ Трейлер'); pl.type='button'; pl.onclick=play; pb.onclick=play;
     if(key || r.trailer) a.appendChild(pl);
