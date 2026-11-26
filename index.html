@@ -549,7 +549,7 @@ function copyLink(f){
 }
 function openShare(f){
   var d=$('shr'); $('shrT').textContent='Поделиться: '+f.name;
-  var prev=$('shPrev'); prev.replaceChildren(el('div','spin'));
+  var prev=$('shPrev'), wait=el('div'); wait.style.textAlign='center'; wait.appendChild(el('div','spin')); wait.appendChild(el('div','hint','Рисую открытку…')); prev.replaceChildren(wait);
   var btns=['shPost','shStory','shSave'].map($); btns.forEach(function(b){ b.disabled=true; });
   var textP=fetchInfo(f).then(function(ov){ return shareText(f,ov); }), text=null; textP.then(function(t){ text=t; });
   var files={};
