@@ -118,6 +118,8 @@ main{padding-top:16px;padding-bottom:70px}
 #cfm .row{justify-content:flex-end;gap:10px}
 #cfm .btn{min-height:44px}
 #cfm .danger{background:#3a1f1e;border-color:#5a2e2b;color:#f0a19c;font-weight:600}
+.links .share{min-height:40px;font-weight:600;font-size:14px;background:rgba(79,209,139,.14);border-color:rgba(79,209,139,.5);color:#7fe0aa}
+@media (max-width:720px){.links .share{min-height:44px}}
 .links .off{background:var(--bg);color:var(--mute);border:1px solid var(--line);padding:0 14px;min-height:40px;display:inline-flex;align-items:center;border-radius:10px;font-weight:600;font-size:14px;opacity:.4;cursor:default}
 @media (max-width:720px){.links .off{min-height:44px}}
 .msg{color:var(--mute);padding:60px 0;text-align:center;font-size:16px;line-height:1.5}
@@ -402,6 +404,55 @@ function askConfirm(title, text, cb){   // своё окно подтвержд�
   d.onclick=function(e){ if(e.target===d) done(false); };
   d.showModal(); $('cfmNo').focus();
 }
+/* ---------- поделиться ---------- */
+function fetchInfo(f){
+  if(!/^(movie|tv|collection)\/\d+$/.test(f.tmdb)) return Promise.resolve('');
+  return new Promise(function(res){
+    if(window.google && google.script && google.script.run){
+      google.script.run.withSuccessHandler(function(d){ res((d&&d.overview)||''); }).withFailureHandler(function(){ res(''); }).filmInfo(f.tmdb);
+    } else {
+      fetch(DATA_URL.split('?')[0]+'?action=info&id='+encodeURIComponent(f.tmdb)).then(function(r){ return r.json(); })
+        .then(function(d){ res((d&&d.overview)||''); }).catch(function(){ res(''); });
+    }
+  });
+}
+function fetchPosterFile(f){
+  var src=posterSrc(f,'w780'); if(!src) return Promise.resolve(null);
+  return fetch(src).then(function(r){ return r.ok ? r.blob() : null; })
+    .then(function(b){ return b ? new File([b], 'poster.jpg', {type:b.type||'image/jpeg'}) : null; }).catch(function(){ return null; });
+}
+function shortText(t, max){
+  t=String(t||'').trim(); if(t.length<=max) return t;
+  var cut=t.slice(0,max), dot=Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  return dot>max*0.5 ? cut.slice(0,dot+1) : cut.replace(/\s+\S*$/,'')+'…';
+}
+function shareText(f, ov){
+  var lines=['🎬 '+f.name+(f.year?' ('+f.year+')':'')];
+  if(f.rating!=null) lines.push('Моя оценка: '+stars(f.rating)+' '+f.rating+'/5');
+  if(f.genres.length) lines.push(f.genres.join(', '));
+  if(ov) lines.push('', shortText(ov, 380));
+  var k=ytKey(f.trailer), tr=k ? 'https://youtu.be/'+k : f.trailer;
+  if(tr) lines.push('', '▶ Трейлер: '+tr);
+  return lines.join('\n');
+}
+function prepareShare(f){
+  return Promise.all([fetchInfo(f), fetchPosterFile(f)]).then(function(a){ return {text:shareText(f,a[0]), file:a[1]}; });
+}
+function copyFallback(text){
+  function done(){ toast('Текст скопирован — вставь его в мессенджер'); }
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(function(){ window.prompt('Скопируй текст:', text); });
+  else window.prompt('Скопируй текст:', text);
+}
+function doShare(f, x){
+  var data={title:f.name, text:x.text};
+  if(x.file && navigator.canShare && navigator.canShare({files:[x.file]})) data.files=[x.file];
+  if(!navigator.share){ copyFallback(x.text); return; }
+  navigator.share(data).catch(function(e){
+    if(e && e.name==='AbortError') return;          // просто закрыл окно «Поделиться»
+    if(data.files){ delete data.files; navigator.share(data).catch(function(e2){ if(!(e2&&e2.name==='AbortError')) copyFallback(x.text); }); }
+    else copyFallback(x.text);
+  });
+}
 function deleteFilmUI(f){
   askConfirm('Удалить «'+f.name+'»?', 'Фильм исчезнет из Киноархива и из таблицы «Фильмы».', function(yes){ if(yes) doDeleteFilm(f); });
 }
@@ -643,6 +694,16 @@ function openFilm(f, autoplay){
     l.appendChild(tb); playBtn=tb; }
   else if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
   if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
+  if(isSeen(f)){   // «Поделиться» — для просмотренных
+    var prep=prepareShare(f), ready=null; prep.then(function(x){ ready=x; });
+    var sh=el('button','btn share','↗ Поделиться'); sh.type='button';
+    sh.onclick=function(){
+      if(ready){ doShare(f, ready); return; }
+      sh.disabled=true; sh.textContent='Готовлю…';
+      prep.then(function(x){ sh.disabled=false; sh.textContent='↗ Поделиться'; doShare(f, x); });
+    };
+    l.appendChild(sh);
+  }
   var tu=tmdbUrl(f);
   if(tu) l.appendChild(link(tu,'TMDB',1));
   else { var off=el('span','off','TMDB'); off.title='Фильма нет на TMDB'; off.setAttribute('aria-disabled','true'); l.appendChild(off); }
