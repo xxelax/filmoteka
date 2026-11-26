@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Фильмотека</title>
+<title>Киноархив</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f0e13">
 <link rel="icon" type="image/png" href="favicon-v2.png">
@@ -20,14 +20,14 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,
 button,input,select{font:inherit;color:inherit}
 a{color:var(--accent)}
 .wrap{padding-left:clamp(14px,4vw,48px);padding-right:clamp(14px,4vw,48px)}
-header{padding-top:max(24px,env(safe-area-inset-top));padding-bottom:6px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px;justify-content:space-between}
+header{padding-top:max(24px,env(safe-area-inset-top));padding-bottom:6px;display:grid;grid-template-columns:1fr auto auto;grid-template-areas:"brand stats btn";align-items:end;gap:12px 24px}
+.brand{grid-area:brand;min-width:0} header .stats{grid-area:stats} #reload{grid-area:btn}
 h1{margin:0;font-size:clamp(26px,4vw,40px);letter-spacing:-.02em;font-weight:700}
 h1 span{color:var(--accent)}
 .src{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:6px;margin-top:4px}
 .dot{width:8px;height:8px;border-radius:50%;background:#777;flex:none}
 .dot.live{background:var(--ok)} .dot.err{background:#e5534b} .dot.busy{background:var(--accent);animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.3}}
-.right{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .stats{display:flex;gap:18px;color:var(--mute);font-size:14px}
 .stats b{color:var(--text);font-size:22px;display:block;line-height:1.1}
 .btn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 14px;min-height:44px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;gap:6px}
@@ -58,9 +58,10 @@ main{padding-top:16px;padding-bottom:70px}
 .ph .t{font-size:clamp(16px,1.6vw,22px);font-weight:700;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.5);overflow-wrap:anywhere}
 .ph .y{font-size:14px;opacity:.85}
 .ph .ic{font-size:28px;opacity:.5}
-.badge{position:absolute;top:10px;left:10px;background:rgba(15,14,19,.82);border-radius:999px;padding:4px 10px;font-size:12px}
+.pbar{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge{background:rgba(15,14,19,.85);border-radius:999px;padding:4px 10px;font-size:12px;line-height:1.2}
 .badge.plan{background:var(--accent);color:#1a1405;font-weight:600}
-.rate{position:absolute;bottom:10px;right:10px;background:rgba(15,14,19,.82);border-radius:999px;padding:3px 9px;font-size:13px;color:var(--accent)}
+.rate{background:rgba(15,14,19,.85);border-radius:999px;padding:4px 9px;font-size:12px;line-height:1.2;color:var(--accent)}
 .meta{padding:10px 2px 0}
 .meta .n{font-weight:600;font-size:16px;line-height:1.25}
 .meta .s{color:var(--mute);font-size:13px;margin-top:3px}
@@ -96,6 +97,8 @@ main{padding-top:16px;padding-bottom:70px}
 .item .thumb{width:100px;border-radius:8px}
 .item .thumb .ph .t{font-size:12px}
 .item h3{margin:0;font-size:16px;line-height:1.25}
+.tcol{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.tcol .st{text-align:center;white-space:normal;font-size:11.5px;padding:4px 6px}
 .item .s{color:var(--mute);font-size:13px;margin:3px 0 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .item .nt{font-size:14px;line-height:1.4;color:#d9d5ce;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;margin:6px 0 0}
 .item .nt.open{-webkit-line-clamp:unset;display:block}
@@ -118,7 +121,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .mod .kv b{color:var(--text);font-weight:500}
 .close{position:absolute;top:10px;right:10px;background:var(--bg);border:1px solid var(--line);border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
 @media (max-width:720px){
-  header{padding-top:16px}
+  header{padding-top:16px;grid-template-columns:1fr auto;grid-template-areas:"brand btn" "stats stats";align-items:start}
   .stats{gap:14px} .stats b{font-size:19px}
   #fbtn{display:inline-flex}
   .filters{display:none}
@@ -139,18 +142,16 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 </head>
 <body>
 <header class="wrap">
-  <div>
-    <h1>🎬 Фильмо<span>тека</span></h1>
+  <div class="brand">
+    <h1>🎬 Кино<span>архив</span></h1>
     <div class="src"><span class="dot busy" id="dot"></span><span id="srcText">Загружаю…</span></div>
   </div>
-  <div class="right">
-    <div class="stats">
-      <div><b id="stTotal">0</b>всего</div>
-      <div><b id="stSeen">0</b>просмотрено</div>
-      <div><b id="stPlan">0</b>хочу посмотреть</div>
-    </div>
-    <button class="btn" id="reload" type="button" title="Перечитать таблицу">↻ Обновить</button>
+  <div class="stats">
+    <div><b id="stTotal">0</b>всего</div>
+    <div><b id="stSeen">0</b>просмотрено</div>
+    <div><b id="stPlan">0</b>хочу посмотреть</div>
   </div>
+  <button class="btn" id="reload" type="button" title="Перечитать таблицу">↻ Обновить</button>
 </header>
 
 <div class="bar wrap" id="bar">
@@ -319,8 +320,12 @@ function renderGallery(list){
     var b=el('button','card'); b.type='button'; b.setAttribute('aria-label',f.name);
     b.onclick=function(){ openFilm(f); };
     var p=fillPoster(el('div','poster'), f, 'w500', true);
-    if(f.status) p.appendChild(el('span','badge'+(isPlan(f)?' plan':''), f.status));
-    if(f.rating!=null) p.appendChild(el('span','rate','★ '+f.rating));
+    if(f.status || f.rating!=null){   // статус и оценка — внизу постера, чтобы не закрывать картинку
+      var pb=el('div','pbar');
+      if(f.status) pb.appendChild(el('span','badge'+(isPlan(f)?' plan':''), f.status));
+      if(f.rating!=null) pb.appendChild(el('span','rate','★ '+f.rating));
+      p.appendChild(pb);
+    }
     b.appendChild(p);
     var mt=el('div','meta'); mt.appendChild(el('div','n',f.name));
     mt.appendChild(el('div','s',[f.year, f.genres.join(', ')].filter(Boolean).join(' · ')));
@@ -370,9 +375,10 @@ function renderList(list){
   list.forEach(function(f){
     var it=el('div','item');
     var tbn=el('button','thumb'); tbn.type='button'; tbn.setAttribute('aria-label','Открыть карточку: '+f.name);
-    tbn.onclick=function(){ openFilm(f); }; fillPoster(tbn,f,'w342',true); it.appendChild(tbn);
+    tbn.onclick=function(){ openFilm(f); }; fillPoster(tbn,f,'w342',true);
+    var tc=el('div','tcol'); tc.appendChild(tbn); if(f.status) tc.appendChild(statusPill(f)); it.appendChild(tc);
     var d=el('div'); d.appendChild(el('h3','',f.name));
-    var s=el('div','s'); if(f.year) s.appendChild(el('span','',f.year)); s.appendChild(statusPill(f));
+    var s=el('div','s'); if(f.year) s.appendChild(el('span','',f.year));
     if(f.rating!=null) s.appendChild(el('span','stars',stars(f.rating)));
     d.appendChild(s);
     if(f.genres.length){ var tg=el('div','tags'); f.genres.forEach(function(x){ tg.appendChild(el('span','tag',x)); }); d.appendChild(tg); }
@@ -440,7 +446,7 @@ function ok(res){
   var sig = JSON.stringify(arr);
   var changed = !loaded || sig!==lastSig;   // перерисовываем, только если в таблице что-то поменялось
   lastSig = sig; lastError='';
-  setSrc('live','Из Google-таблицы · проверено в '+hhmm(new Date()));
+  setSrc('live','Обновлено в '+hhmm(new Date()));
   if(!changed) return;
   films = arr.map(cleanFilm); loaded=true;
   store('data', sig);
