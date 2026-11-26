@@ -1,5 +1,5 @@
 // Фильмотека: сервис-воркер. Оболочка работает и без сети; файлы сайта всегда сверяются с сервером.
-const CACHE = 'filmoteka-v7';
+const CACHE = 'filmoteka-v8';
 const SHELL = ['./', 'index.html'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

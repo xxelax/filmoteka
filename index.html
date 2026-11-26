@@ -127,7 +127,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .rhead b{color:var(--text);font-size:18px;display:block;margin-bottom:2px}
 .recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:18px}
 .rc{display:grid;grid-template-columns:150px 1fr;column-gap:16px;row-gap:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;align-items:start}
-.rc>.thumb{grid-column:1;grid-row:1/span 3}.rc>.hd,.rc>.bd,.rc>.acts{grid-column:2}.rc>.vid{grid-column:1/-1;margin-top:12px}
+.rc>.thumb{grid-column:1;grid-row:1/span 3}.rc>.hd,.rc>.bd,.rc>.acts{grid-column:2}
 .seg button{white-space:nowrap}
 .rc .poster{box-shadow:none;border-radius:10px}
 .rc h3{margin:0 0 4px;font-size:19px;line-height:1.25}
@@ -140,7 +140,9 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .acts .play{background:#e5534b;border-color:#e5534b;color:#fff}
 .acts .want{background:var(--accent);border-color:var(--accent);color:#1a1405}
 .acts button:disabled{opacity:.5;cursor:default}
-.vid{grid-column:1/-1;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
+.vidwrap{grid-column:1/-1}.rc>.vidwrap{margin-top:12px}.mod .vidwrap{margin-top:14px}
+.ytl{display:inline-block;margin-top:6px;font-size:13px;color:var(--mute)}
+.vid{aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
 .vid iframe{width:100%;height:100%;border:0;display:block}
 .mod .vid{margin-top:14px}
 .toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);background:#2a2833;color:var(--text);border:1px solid #47434f;border-radius:12px;padding:12px 16px;font-size:15px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:92vw;text-align:center}
@@ -357,7 +359,10 @@ function videoBox(key){
   f.src='https://www.youtube-nocookie.com/embed/'+key+'?autoplay=1&rel=0&playsinline=1';
   f.title='Трейлер'; f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen=true;
   f.referrerPolicy='strict-origin-when-cross-origin';
-  v.appendChild(f); return v;
+  v.appendChild(f);
+  var w=el('div','vidwrap'); w.appendChild(v);
+  var a=link('https://www.youtube.com/watch?v='+key,'Не играет? Открыть на YouTube ↗'); a.className='ytl'; w.appendChild(a);
+  return w;
 }
 function cleanRec(x){
   x=x||{}; var g=Array.isArray(x.genres)?x.genres:String(x.genres||'').split(/[\/,;]+/);
@@ -535,7 +540,7 @@ function openFilm(f){
   var l=el('div','links'); l.style.marginTop='16px';
   var tk=ytKey(f.trailer);
   if(tk){ var tb=el('button','',''); tb.type='button'; tb.textContent='▶ Трейлер'; tb.className='btn'; tb.style.background='#e5534b'; tb.style.borderColor='#e5534b'; tb.style.color='#fff'; tb.style.fontWeight='600';
-    tb.onclick=function(){ var ex=d.querySelector('.vid'); if(ex){ ex.remove(); tb.textContent='▶ Трейлер'; } else { d.appendChild(videoBox(tk)); tb.textContent='■ Закрыть трейлер'; } };
+    tb.onclick=function(){ var ex=d.querySelector('.vidwrap'); if(ex){ ex.remove(); tb.textContent='▶ Трейлер'; } else { d.appendChild(videoBox(tk)); tb.textContent='■ Закрыть трейлер'; } };
     l.appendChild(tb); }
   else if(f.trailer) l.appendChild(link(f.trailer,'▶ Трейлер'));
   if(f.full) l.appendChild(link(f.full,'Смотреть целиком'));
