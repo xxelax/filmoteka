@@ -489,6 +489,20 @@ function doShare(f, x){
 }
 /* ---------- открытка ---------- */
 function loadImg(src){ return new Promise(function(res){ if(!src) return res(null); var i=new Image(); i.crossOrigin='anonymous'; i.onload=function(){ res(i); }; i.onerror=function(){ res(null); }; i.src=src; }); }
+function canvasOk(img){ try{ var c=document.createElement('canvas'); c.width=c.height=2; var x=c.getContext('2d'); x.drawImage(img,0,0,2,2); x.getImageData(0,0,1,1); return true; }catch(e){ return false; } }
+function proxyImg(src){   // постер через наш сервер (Apps Script) — если телефон не даёт рисовать картинку TMDB напрямую
+  var m=String(src).match(/image\.tmdb\.org\/t\/p\/[^\/]+(\/[A-Za-z0-9_-]+\.(?:jpg|jpeg|png))/); if(!m) return Promise.resolve(null);
+  return new Promise(function(res){
+    function got(d){ if(d && d.data) loadImg('data:'+(d.mime||'image/jpeg')+';base64,'+d.data).then(res); else res(null); }
+    if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(got).withFailureHandler(function(){ res(null); }).posterData(m[1]);
+    else fetch(DATA_URL.split('?')[0]+'?action=img&path='+encodeURIComponent(m[1]),{cache:'no-store'}).then(function(r){ return r.json(); }).then(got).catch(function(){ res(null); });
+  });
+}
+function loadPoster(f){
+  var src=posterSrc(f,'w780'); if(!src) return Promise.resolve(null);
+  var direct=src+(src.indexOf('?')<0?'?c=1':'&c=1');   // отдельный адрес, чтобы не мешала копия из кэша без разрешения
+  return loadImg(direct).then(function(img){ return (img && canvasOk(img)) ? img : proxyImg(src); });
+}
 function rr(x,a,b,w,hh,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+hh,r); x.arcTo(a+w,b+hh,a,b+hh,r); x.arcTo(a,b+hh,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 function wrapLines(x,text,maxW,maxLines){
   var words=String(text).split(/\s+/), lines=[], cur='';
@@ -539,7 +553,8 @@ function openShare(f){
   var btns=['shPost','shStory','shSave'].map($); btns.forEach(function(b){ b.disabled=true; });
   var textP=fetchInfo(f).then(function(ov){ return shareText(f,ov); }), text=null; textP.then(function(t){ text=t; });
   var files={};
-  loadImg(posterSrc(f,'w780')).then(function(img){
+  loadPoster(f).then(function(img){
+    if(!img && f.poster) toast('Постер не загрузился — открытка без постера');
     var post=drawCard(f,img,1080,1350), story=drawCard(f,img,1080,1920), base=slug(f.name);
     var pi=document.createElement('img'); pi.alt='Открытка'; pi.src=post.toDataURL('image/jpeg',0.8); prev.replaceChildren(pi);
     return Promise.all([canvasFile(post,base+'-post.jpg'), canvasFile(story,base+'-story.jpg')]);
